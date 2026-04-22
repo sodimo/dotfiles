@@ -4,7 +4,7 @@ Wants=sodimo-network.service
 After=sodimo-network.service
 
 [Container]
-Image=docker.io/pgvector/pgvector:pg16
+Image=docker.io/pgvector/pgvector:pg16@sha256:7d400e340efb42f4d8c9c12c6427adb253f726881a9985d2a471bf0eed824dff
 ContainerName=litellm-postgres
 Network=sodimo.network
 Volume=litellm-db-data.volume:/var/lib/postgresql/data

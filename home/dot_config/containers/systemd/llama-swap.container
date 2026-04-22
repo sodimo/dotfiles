@@ -21,7 +21,7 @@ Wants=sodimo-network.service
 After=sodimo-network.service
 
 [Container]
-Image=ghcr.io/mostlygeek/llama-swap:vulkan
+Image=ghcr.io/mostlygeek/llama-swap:vulkan@sha256:820e40ec6f9eded8be0d620b8e11caaf6c80eb69f8eb819bb89a14d432f01af4
 ContainerName=llama-swap
 Network=sodimo.network
 PublishPort=127.0.0.1:9292:8080

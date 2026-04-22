@@ -8,7 +8,7 @@ Wants=sodimo-network.service
 After=sodimo-network.service
 
 [Container]
-Image=docker.io/rspamd/rspamd:3.9.1
+Image=docker.io/rspamd/rspamd:3.9.1@sha256:df84db0a4d1116db31e32767b99cb0e3fd27660c7c2a1108d88dc5e933e1a105
 ContainerName=rspamd
 Network=sodimo.network
 # Web UI (11334), milter (11332), controller (11333)

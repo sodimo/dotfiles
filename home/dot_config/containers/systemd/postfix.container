@@ -14,7 +14,7 @@ Wants=sodimo-network.service
 After=sodimo-network.service
 
 [Container]
-Image=docker.io/boky/postfix:4.3.0
+Image=docker.io/boky/postfix:4.3.0@sha256:3427fe1b56a3c3f358c2bc5cff3994b035814af65f50b0ff6f1efb3a04dccb9e
 ContainerName=postfix
 Network=sodimo.network
 # Inbound SMTP (25), submission (587), SMTPS (465)

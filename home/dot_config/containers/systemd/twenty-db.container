@@ -4,7 +4,7 @@ Wants=sodimo-network.service
 After=sodimo-network.service
 
 [Container]
-Image=docker.io/postgres:16
+Image=docker.io/postgres:16@sha256:760ea41aae126965bedd587d35a23de37447bb13a6ac4444bef6ff73b8b72234
 ContainerName=twenty-db
 Network=sodimo.network
 Volume=twenty-db-data.volume:/var/lib/postgresql/data

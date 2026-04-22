@@ -4,7 +4,7 @@ Wants=sodimo-network.service
 After=sodimo-network.service
 
 [Container]
-Image=docker.io/redis:7-alpine
+Image=docker.io/redis:7-alpine@sha256:7aec734b2bb298a1d769fd8729f13b8514a41bf90fcdd1f38ec52267fbaa8ee6
 ContainerName=openwebui-redis
 Network=sodimo.network
 Volume=openwebui-redis-data.volume:/data

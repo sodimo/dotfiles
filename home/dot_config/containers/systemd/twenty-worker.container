@@ -8,7 +8,7 @@ Wants=sodimo-network.service twenty-db.service twenty-redis.service twenty.servi
 After=sodimo-network.service twenty-db.service twenty-redis.service twenty.service
 
 [Container]
-Image=docker.io/twentycrm/twenty:v2.0.0
+Image=docker.io/twentycrm/twenty:v2.0.0@sha256:0250911a2c44652772aaf8f59f42e8313e8d97fe300412ac3aa49a7092093576
 ContainerName=twenty-worker
 Network=sodimo.network
 EnvironmentFile=%h/.config/containers/systemd/twenty.env

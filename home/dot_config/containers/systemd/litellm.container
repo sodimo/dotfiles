@@ -11,7 +11,7 @@ Wants=sodimo-network.service litellm-db.service litellm-redis.service llama-swap
 After=sodimo-network.service litellm-db.service litellm-redis.service
 
 [Container]
-Image=ghcr.io/berriai/litellm:main-stable
+Image=ghcr.io/berriai/litellm:main-stable@sha256:9e1536c6a9219519f024f221706b20b012ca5176988164798adc5c7fe011e5d5
 ContainerName=litellm
 Network=sodimo.network
 PublishPort=127.0.0.1:4000:4000

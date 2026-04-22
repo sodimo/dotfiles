@@ -10,7 +10,7 @@ Wants=sodimo-network.service piler-mysql.service
 After=sodimo-network.service piler-mysql.service
 
 [Container]
-Image=docker.io/sutoj/piler:1.4.5
+Image=docker.io/sutoj/piler:1.4.5@sha256:fb3372fc01ac9f198589df43e8bb5b2a75589b8c297688ebefbcd03bd4203190
 ContainerName=piler
 Network=sodimo.network
 PublishPort=127.0.0.1:8091:80

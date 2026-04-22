@@ -30,3 +30,6 @@ jobs:
           else
             echo "No test runner configured — skipping"
           fi
+
+      - name: Check D-167 digest pins
+        run: ./scripts/check-digest-pins.sh

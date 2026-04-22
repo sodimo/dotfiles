@@ -8,7 +8,7 @@ Wants=sodimo-network.service
 After=sodimo-network.service
 
 [Container]
-Image=docker.io/library/mariadb:11
+Image=docker.io/library/mariadb:11@sha256:78a5047d3ba33975f183f183c2464cc7f1eab13ec8667e57cc9a5821d6da7577
 ContainerName=piler-mysql
 Network=sodimo.network
 EnvironmentFile=%h/.config/containers/systemd/piler-mysql.env
