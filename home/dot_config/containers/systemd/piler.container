@@ -6,8 +6,8 @@
 [Unit]
 Description=Piler email archive
 Documentation=https://www.mailpiler.org/docs/
-Wants=sodimo-network.service
-After=sodimo-network.service
+Wants=sodimo-network.service piler-mysql.service
+After=sodimo-network.service piler-mysql.service
 
 [Container]
 Image=docker.io/sutoj/piler:1.4.5
@@ -16,8 +16,9 @@ Network=sodimo.network
 PublishPort=127.0.0.1:8091:80
 # SMTP sink (piler listens on 25 internally, we map externally to 2525
 # so only Postfix can talk to it inside the podman network).
+# piler-mysql.volume is mounted on piler-mysql (the MariaDB sidecar), NOT
+# here. Piler reaches the server via MYSQL_HOSTNAME=piler-mysql in piler.env.
 Volume=piler-data.volume:/var/piler
-Volume=piler-mysql.volume:/var/lib/mysql
 EnvironmentFile=%h/.config/containers/systemd/piler.env
 
 [Service]
