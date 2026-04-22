@@ -1,0 +1,68 @@
+name: Build + publish paperclip image
+
+# Publishes ghcr.io/sodimo/paperclip:<tag> from docker/paperclip/Dockerfile.
+#
+# Status (2026-04-22): BLOCKED — the sodimo org has not granted this repo
+# write:packages. See sodimo/dotfiles#12. This workflow is scaffolded so
+# that once the permission lands, publishing is a tag-push away.
+#
+# Trigger:
+#   - manual (workflow_dispatch) — image_tag input, good for one-off builds
+#   - tag push matching `paperclip-v*` — production publish path
+#
+# Tag convention: v<upstream-calver>-pi<pi-version>
+#   e.g. paperclip-v2026.416.0-pi0.x.y  (git tag)
+#   →    ghcr.io/sodimo/paperclip:v2026.416.0-pi0.x.y  (image tag)
+
+on:
+  push:
+    tags:
+      - 'paperclip-v*'
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag (without registry prefix), e.g. v2026.416.0-pi0.5.1'
+        required: true
+        type: string
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write    # requires org-level consent; see #12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            # strip the `paperclip-` prefix from the git tag
+            echo "tag=${GITHUB_REF_NAME#paperclip-}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build + push
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/paperclip
+          file: docker/paperclip/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/sodimo/paperclip:${{ steps.tag.outputs.tag }}
+          # The upstream ghcr.io/paperclipai/paperclip base image is single-
+          # platform linux/amd64; no multi-arch matrix needed.
+          platforms: linux/amd64
+          provenance: false
