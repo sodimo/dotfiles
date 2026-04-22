@@ -1,0 +1,26 @@
+# litellm — single gateway that routes chat completions to either
+# llama-swap (local tiers) or Anthropic / OpenAI (cloud escalation).
+# OpenWebUI + Paperclip + the Worker MCP all talk to LiteLLM, never
+# directly to llama-swap or the cloud APIs — keeps cost accounting and
+# fallback logic in one place.
+
+[Unit]
+Description=LiteLLM gateway
+Documentation=https://docs.litellm.ai/
+Wants=sodimo-network.service litellm-db.service litellm-redis.service llama-swap.service
+After=sodimo-network.service litellm-db.service litellm-redis.service
+
+[Container]
+Image=ghcr.io/berriai/litellm:main-stable
+ContainerName=litellm
+Network=sodimo.network
+PublishPort=127.0.0.1:4000:4000
+EnvironmentFile=%h/.config/containers/systemd/litellm.env
+Volume=%h/.config/containers/systemd/litellm.yaml:/app/config.yaml:ro,Z
+Exec=--config /app/config.yaml --port 4000
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=sodimo.target

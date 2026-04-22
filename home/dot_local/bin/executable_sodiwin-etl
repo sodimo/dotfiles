@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# sodiwin-etl — read nightly CSV dump off NAS, load into D1.
+# Stub: full ETL lives in sodimo/etl; this script wires timer → entrypoint.
+
+set -euo pipefail
+
+SODIWIN_NAS_MOUNT="${SODIWIN_NAS_MOUNT:-/mnt/sodiwin-dumps}"
+D1_ACCOUNT_ID="${D1_ACCOUNT_ID:?set in sodiwin-etl.env}"
+D1_DATABASE_ID="${D1_DATABASE_ID:?set in sodiwin-etl.env}"
+D1_API_TOKEN="${D1_API_TOKEN:?set in sodiwin-etl.env}"
+
+today="$(date -u +%Y-%m-%d)"
+src="${SODIWIN_NAS_MOUNT}/${today}"
+
+if [[ ! -d "${src}" ]]; then
+  echo "[etl] no dump for ${today} at ${src}" >&2
+  exit 2
+fi
+
+# Defer actual ETL body to sodimo/etl runner.
+exec podman run --rm \
+  --name sodiwin-etl-run \
+  --network sodimo \
+  -v "${src}:/dump:ro,Z" \
+  -e D1_ACCOUNT_ID="${D1_ACCOUNT_ID}" \
+  -e D1_DATABASE_ID="${D1_DATABASE_ID}" \
+  -e D1_API_TOKEN="${D1_API_TOKEN}" \
+  ghcr.io/sodimo/etl:latest \
+  --source /dump --target d1

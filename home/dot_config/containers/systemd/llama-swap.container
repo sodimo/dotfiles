@@ -1,0 +1,41 @@
+# llama-swap — OpenAI-compatible front-end that hot-swaps llama.cpp
+# instances by model name.
+#
+# Hardware: Framework Desktop, AMD Strix Halo (iGPU gfx1151, 40 RDNA 3.5
+# compute units, 128 GB unified memory).
+#
+# Backend posture: Vulkan via the ramalama container (RADV for token-gen,
+# AMDVLK for long-context). ROCm on Strix Halo's iGPU is fragile and
+# upstream-bleeding-edge; Vulkan is the production path per leger-labs
+# benchmarking on the same silicon.
+
+[Unit]
+Description=llama-swap gateway
+Documentation=https://github.com/mostlygeek/llama-swap
+Wants=sodimo-network.service
+After=sodimo-network.service
+
+[Container]
+Image=ghcr.io/mostlygeek/llama-swap:vulkan
+ContainerName=llama-swap
+Network=sodimo.network
+PublishPort=127.0.0.1:9292:8080
+# GPU passthrough (ramalama spawns llama.cpp containers that inherit these)
+AddDevice=/dev/dri
+AddDevice=/dev/kfd
+GroupAdd=keep-groups
+PodmanArgs=--group-add=video
+PodmanArgs=--group-add=render
+# Config + model cache
+Volume=%h/.config/containers/systemd/llama-swap.yaml:/app/config.yaml:ro,Z
+Volume=%h/.local/share/ramalama:/root/.local/share/ramalama:ro,Z
+Volume=%t/podman/podman.sock:/var/run/docker.sock
+Environment=HSA_OVERRIDE_GFX_VERSION=11.0.0
+Exec=--config /app/config.yaml --listen :8080
+
+[Service]
+Restart=always
+TimeoutStartSec=600
+
+[Install]
+WantedBy=sodimo.target

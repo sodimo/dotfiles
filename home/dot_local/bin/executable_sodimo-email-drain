@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""sodimo-email-drain — pull messages from CF Queue, pipe to local sendmail.
+
+Loop: pull_batch(25 msgs, 60s visibility) → validate sender → sendmail -t → ack.
+Failures retry up to 3× before going to the CF Queue DLQ `email_dlq`.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import time
+from typing import Any
+
+import urllib.request
+import urllib.error
+
+CF_ACCOUNT_ID = os.environ["CF_ACCOUNT_ID"]
+CF_QUEUE_ID = os.environ["CF_QUEUE_ID"]
+CF_API_TOKEN = os.environ["CF_API_TOKEN"]
+ALLOWED_SENDERS = set(os.environ.get("ALLOWED_SENDERS", "").split(","))
+
+PULL_URL = (
+    f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}"
+    f"/queues/{CF_QUEUE_ID}/messages/pull"
+)
+ACK_URL = (
+    f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}"
+    f"/queues/{CF_QUEUE_ID}/messages/ack"
+)
+
+POLL_SEC = 5
+BATCH = 25
+VISIBILITY_MS = 60_000
+
+
+def cf_post(url: str, payload: dict[str, Any]) -> dict[str, Any]:
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode(),
+        headers={
+            "Authorization": f"Bearer {CF_API_TOKEN}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read())
+
+
+def pull_batch() -> list[dict[str, Any]]:
+    body = cf_post(PULL_URL, {"visibility_timeout_ms": VISIBILITY_MS, "batch_size": BATCH})
+    return body.get("result", {}).get("messages", [])
+
+
+def ack(lease_ids: list[str], retry_ids: list[str]) -> None:
+    cf_post(ACK_URL, {"acks": lease_ids, "retries": retry_ids})
+
+
+def deliver(msg: dict[str, Any]) -> bool:
+    """Return True on success (ack), False on failure (retry)."""
+    try:
+        body = msg["body"]
+        sender = body["from"]
+        if sender not in ALLOWED_SENDERS:
+            print(f"[drain] rejecting {sender}: not in ALLOWED_SENDERS", file=sys.stderr)
+            return False
+        rfc = _format_rfc822(body)
+        proc = subprocess.run(
+            ["sendmail", "-t", "-f", sender],
+            input=rfc.encode(),
+            capture_output=True,
+            timeout=30,
+        )
+        if proc.returncode != 0:
+            print(f"[drain] sendmail rc={proc.returncode}: {proc.stderr.decode()}", file=sys.stderr)
+            return False
+        return True
+    except Exception as e:
+        print(f"[drain] error: {e}", file=sys.stderr)
+        return False
+
+
+def _format_rfc822(body: dict[str, Any]) -> str:
+    lines = [
+        f"From: {body['from']}",
+        f"To: {body['to']}",
+        f"Subject: {body.get('subject', '')}",
+        f"Message-ID: <{body['id']}@sodimo.eu>",
+        "MIME-Version: 1.0",
+        'Content-Type: text/plain; charset="utf-8"',
+    ]
+    for k, v in body.get("headers", {}).items():
+        lines.append(f"{k}: {v}")
+    lines.append("")
+    lines.append(body.get("body", ""))
+    return "\r\n".join(lines)
+
+
+def main() -> None:
+    while True:
+        try:
+            msgs = pull_batch()
+        except (urllib.error.URLError, json.JSONDecodeError) as e:
+            print(f"[drain] pull failed: {e}", file=sys.stderr)
+            time.sleep(POLL_SEC)
+            continue
+
+        acks: list[str] = []
+        retries: list[str] = []
+        for m in msgs:
+            if deliver(m):
+                acks.append(m["lease_id"])
+            else:
+                retries.append(m["lease_id"])
+
+        if acks or retries:
+            try:
+                ack(acks, retries)
+            except urllib.error.URLError as e:
+                print(f"[drain] ack failed: {e}", file=sys.stderr)
+
+        if not msgs:
+            time.sleep(POLL_SEC)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,16 @@
+# sodiwin-etl — nightly ETL timer.
+# Fires at 03:00 Europe/Paris (Florian's nightly SFTP dump lands at 02:30).
+# The timer triggers sodiwin-etl.service which reads the CSVs off the NAS
+# and loads them into Cloudflare D1.
+
+[Unit]
+Description=Sodiwin nightly ETL
+Documentation=https://changelog.sodimo.eu/manual/21-sodiwin/
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 Europe/Paris
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

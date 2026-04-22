@@ -1,0 +1,26 @@
+# dovecot — IMAP + LMTP (LMTP delivery from Postfix).
+# 33 mailboxes migrated from Strato; indefinite retention per D-106.
+# Piler ingests a BCC copy of every inbound + outbound for full-text search.
+
+[Unit]
+Description=Dovecot IMAP + LMTP
+Documentation=https://doc.dovecot.org/
+Wants=sodimo-network.service
+After=sodimo-network.service
+
+[Container]
+Image=docker.io/dovecot/dovecot:2.3.21.1
+ContainerName=dovecot
+Network=sodimo.network
+# IMAP (143), IMAPS (993), LMTP (24 — internal to sodimo.network only)
+PublishPort=143:143
+PublishPort=993:993
+Volume=%h/.config/containers/systemd/dovecot.conf:/etc/dovecot/dovecot.conf:ro,Z
+Volume=dovecot-mail.volume:/var/mail
+Volume=dovecot-config.volume:/etc/dovecot/users.d
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=sodimo.target

@@ -1,0 +1,31 @@
+#!/bin/bash
+# Sodimo harness bashrc — headless server baseline.
+
+[[ -f /etc/bashrc ]] && . /etc/bashrc
+
+# PATH: user-local first
+export PATH="$HOME/.local/bin:$HOME/bin:$PATH"
+
+# Drop-in fragments (chezmoi-rendered per-host additions go here)
+if [[ -d "$HOME/.bashrc.d" ]]; then
+  for f in "$HOME/.bashrc.d/"*.sh; do
+    [[ -r "$f" ]] && . "$f"
+  done
+fi
+
+# Local secrets source (never committed; written by provisioning)
+[[ -r "$HOME/.env" ]] && set -a && . "$HOME/.env" && set +a
+
+# Podman + systemd convenience
+alias scu='systemctl --user'
+alias jcu='journalctl --user'
+alias pqlr='systemctl --user daemon-reload'
+alias quadlets='ls ~/.config/containers/systemd/'
+
+# History
+export HISTSIZE=10000
+export HISTFILESIZE=20000
+export HISTCONTROL=ignoreboth:erasedups
+shopt -s histappend
+
+PS1='[\u@\h \W]\$ '

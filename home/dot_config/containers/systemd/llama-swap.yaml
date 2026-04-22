@@ -1,0 +1,85 @@
+# llama-swap routing config
+# Groups control concurrency + TTL:
+#   - task:       always-loaded (TTL=0), small, fast.
+#   - heavy:      on-demand, TTL=600s (unload after 10 min idle).
+#   - embeddings: always-loaded, used by RAG if/when enabled.
+# Vulkan driver choice per model — RADV for token-heavy, AMDVLK for prompt-heavy.
+
+healthCheckTimeout: 120
+
+groups:
+  task:
+    swap: false
+    exclusive: false
+  heavy:
+    swap: true
+    exclusive: true
+  embeddings:
+    swap: false
+    exclusive: false
+
+models:
+  # ── Always-loaded task tier ──────────────────────────────────────────
+  qwen3-4b:
+    aliases: [qwen3-4b, local-task]
+    cmd: |
+      ramalama --runtime llama.cpp run
+      --name qwen3-4b
+      --port 8001
+      --ngl 99
+      --ctx-size 32768
+      --temp 0.6
+      --flash-attn on
+      --vulkan-driver radv
+      hf://Qwen/Qwen3-4B-Instruct-Q4_K_M.gguf
+    proxy: http://llama-swap:8001
+    ttl: 0
+    group: task
+
+  # ── On-demand quality tier ───────────────────────────────────────────
+  gpt-oss-20b:
+    aliases: [gpt-oss-20b, local-heavy]
+    cmd: |
+      ramalama --runtime llama.cpp run
+      --name gpt-oss-20b
+      --port 8002
+      --ngl 99
+      --ctx-size 65536
+      --temp 0.7
+      --flash-attn on
+      --vulkan-driver amdvlk
+      hf://Qwen/gpt-oss-20b-Q4_K_M.gguf
+    proxy: http://llama-swap:8002
+    ttl: 600
+    group: heavy
+
+  qwen3-30b:
+    aliases: [qwen3-30b-coder]
+    cmd: |
+      ramalama --runtime llama.cpp run
+      --name qwen3-30b
+      --port 8003
+      --ngl 99
+      --ctx-size 65536
+      --temp 0.3
+      --flash-attn on
+      --vulkan-driver amdvlk
+      hf://Qwen/Qwen3-Coder-30B-Instruct-Q4_K_M.gguf
+    proxy: http://llama-swap:8003
+    ttl: 600
+    group: heavy
+
+  # ── Embeddings ───────────────────────────────────────────────────────
+  qwen3-embedding:
+    aliases: [qwen3-embedding, local-embeddings]
+    cmd: |
+      ramalama --runtime llama.cpp run
+      --name qwen3-embedding
+      --port 8004
+      --embedding
+      --ngl 99
+      --vulkan-driver radv
+      hf://Qwen/Qwen3-Embedding-8B-Q8_0.gguf
+    proxy: http://llama-swap:8004
+    ttl: 0
+    group: embeddings

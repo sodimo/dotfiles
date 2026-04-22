@@ -1,0 +1,25 @@
+# twenty — Twenty CRM server (HTTP UI + GraphQL API).
+# Deployment posture: adopt-as-pinned-quadlet (Pivot 1). We do not fork
+# the Twenty codebase; Sodimo's differentiator is the MCP wrapper around
+# Twenty's Postgres, which lives in sodimo/mcp, not here.
+
+[Unit]
+Description=Twenty CRM server
+Documentation=https://twenty.com/developers/self-hosting
+Wants=sodimo-network.service twenty-db.service twenty-redis.service
+After=sodimo-network.service twenty-db.service twenty-redis.service
+
+[Container]
+Image=twentycrm/twenty:v2.0.0
+ContainerName=twenty
+Network=sodimo.network
+PublishPort=127.0.0.1:3333:3000
+EnvironmentFile=%h/.config/containers/systemd/twenty.env
+Volume=twenty-data.volume:/app/packages/twenty-server/.local-storage
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=sodimo.target

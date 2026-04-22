@@ -1,0 +1,10 @@
+[Unit]
+Description=Sodiwin nightly ETL (CSV → D1)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/sodimo/sodiwin-etl.env
+ExecStart=%h/.local/bin/sodiwin-etl
+# One-shot; timer schedules the next run.

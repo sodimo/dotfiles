@@ -1,0 +1,4 @@
+#!/bin/bash
+# Sodimo harness bash_profile — source bashrc on login.
+
+[[ -f "$HOME/.bashrc" ]] && . "$HOME/.bashrc"

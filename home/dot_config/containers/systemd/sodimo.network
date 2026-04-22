@@ -1,0 +1,14 @@
+# sodimo.network — the one podman bridge every Sodimo container attaches to.
+# Subnet + gateway kept stable so Caddy can reverse-proxy by container name
+# (e.g. http://openwebui:8080) without DNS surprises.
+
+[Unit]
+Description=Sodimo podman network (10.89.0.0/24)
+
+[Network]
+NetworkName=sodimo
+Subnet=10.89.0.0/24
+Gateway=10.89.0.1
+
+[Install]
+WantedBy=sodimo.target

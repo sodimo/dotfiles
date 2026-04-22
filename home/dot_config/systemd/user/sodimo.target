@@ -1,0 +1,9 @@
+[Unit]
+Description=Sodimo harness service target (quadlets + timers)
+Documentation=https://changelog.sodimo.eu/manual/35-harness/
+# Depends on the user session being ready and the network up.
+Wants=default.target
+After=default.target
+
+[Install]
+WantedBy=default.target

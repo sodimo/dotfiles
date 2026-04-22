@@ -1,0 +1,25 @@
+# vaultwarden — Bitwarden-compatible password vault, self-hosted.
+# Sodimo canonical vault per `37-vault.md`. Employees log in via
+# Bitwarden clients against vault.sodimo.eu (gated by CF Access).
+# Break-glass via Tailscale only.
+
+[Unit]
+Description=Vaultwarden
+Documentation=https://github.com/dani-garcia/vaultwarden/wiki
+Wants=sodimo-network.service
+After=sodimo-network.service
+
+[Container]
+Image=docker.io/vaultwarden/server:1.32.7
+ContainerName=vaultwarden
+Network=sodimo.network
+PublishPort=127.0.0.1:8222:80
+EnvironmentFile=%h/.config/containers/systemd/vaultwarden.env
+Volume=vaultwarden-data.volume:/data
+
+[Service]
+Restart=always
+TimeoutStartSec=120
+
+[Install]
+WantedBy=sodimo.target

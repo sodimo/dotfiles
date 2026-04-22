@@ -1,0 +1,23 @@
+name: Deploy Docs
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  trigger-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch rebuild to changelog repo
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CHANGELOG_DISPATCH_TOKEN }}
+          repository: sodimo/changelog-sodimo-eu
+          event-type: release-published
+          client-payload: |
+            {
+              "repo": "${{ github.repository }}",
+              "tag": "${{ github.event.release.tag_name }}",
+              "name": "${{ github.event.release.name }}",
+              "published_at": "${{ github.event.release.published_at }}"
+            }

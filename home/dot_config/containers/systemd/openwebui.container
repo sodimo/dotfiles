@@ -1,0 +1,25 @@
+# openwebui — chat UI for local + escalation models.
+# Soft-fork of leger-labs/dotfiles1/openwebui/ with the 7-item Sodimo
+# adaptation applied: WEBUI_AUTH=false, DEFAULT_USER_ROLE=admin, signup off,
+# community+webhooks off, fresh WEBUI_SECRET_KEY. See the env file.
+
+[Unit]
+Description=OpenWebUI
+Documentation=https://docs.openwebui.com/
+Wants=sodimo-network.service openwebui-db.service openwebui-redis.service litellm.service
+After=sodimo-network.service openwebui-db.service openwebui-redis.service
+
+[Container]
+Image=ghcr.io/open-webui/open-webui:main
+ContainerName=openwebui
+Network=sodimo.network
+PublishPort=127.0.0.1:3000:8080
+EnvironmentFile=%h/.config/containers/systemd/openwebui.env
+Volume=openwebui-data.volume:/app/backend/data
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=sodimo.target

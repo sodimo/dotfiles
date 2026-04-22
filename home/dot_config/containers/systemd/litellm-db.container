@@ -1,0 +1,20 @@
+[Unit]
+Description=LiteLLM Postgres
+Wants=sodimo-network.service
+After=sodimo-network.service
+
+[Container]
+Image=docker.io/pgvector/pgvector:pg16
+ContainerName=litellm-postgres
+Network=sodimo.network
+Volume=litellm-db-data.volume:/var/lib/postgresql/data
+Environment=POSTGRES_DB=litellm
+Environment=POSTGRES_USER=litellm
+Environment=POSTGRES_PASSWORD=litellm
+Environment=POSTGRES_HOST_AUTH_METHOD=md5
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=sodimo.target

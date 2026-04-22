@@ -1,0 +1,16 @@
+[Unit]
+Description=Twenty CRM Redis (BullMQ message queue)
+Wants=sodimo-network.service
+After=sodimo-network.service
+
+[Container]
+Image=docker.io/redis:7-alpine
+ContainerName=twenty-redis
+Network=sodimo.network
+Volume=twenty-redis-data.volume:/data
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=sodimo.target

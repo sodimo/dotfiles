@@ -1,0 +1,26 @@
+# Sodimo Caddyfile — HTTP-only reverse proxy behind cloudflared.
+#
+# Caddy receives requests from either:
+#   - cloudflared (127.0.0.1 → http://caddy:80 → backend container)
+#   - Tailscale (tailnet IP:443 direct for Tom's break-glass)
+#
+# TLS is terminated at Cloudflare. Caddy speaks plain HTTP internally.
+# Every backend is addressed by podman container name on sodimo.network.
+
+{
+    admin off
+    auto_https off
+    servers {
+        trusted_proxies static 127.0.0.1/32 100.64.0.0/10
+    }
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 50mb
+            roll_keep 10
+        }
+        format json
+    }
+}
+
+# Pull every per-service route file.
+import /etc/caddy/routes/*.caddy

@@ -1,0 +1,16 @@
+[Unit]
+Description=OpenWebUI Redis (sessions + websockets)
+Wants=sodimo-network.service
+After=sodimo-network.service
+
+[Container]
+Image=docker.io/redis:7-alpine
+ContainerName=openwebui-redis
+Network=sodimo.network
+Volume=openwebui-redis-data.volume:/data
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=sodimo.target

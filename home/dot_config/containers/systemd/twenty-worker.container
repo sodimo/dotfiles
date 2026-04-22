@@ -1,0 +1,23 @@
+# twenty-worker — background job runner (email sends via native Workflows,
+# messaging sync, scheduled workflows). Same image as twenty.container, run
+# with NODE_ENV=production and WORKER dispatch.
+
+[Unit]
+Description=Twenty CRM worker
+Wants=sodimo-network.service twenty-db.service twenty-redis.service twenty.service
+After=sodimo-network.service twenty-db.service twenty-redis.service twenty.service
+
+[Container]
+Image=twentycrm/twenty:v2.0.0
+ContainerName=twenty-worker
+Network=sodimo.network
+EnvironmentFile=%h/.config/containers/systemd/twenty.env
+Volume=twenty-data.volume:/app/packages/twenty-server/.local-storage
+Exec=yarn worker:prod
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=sodimo.target

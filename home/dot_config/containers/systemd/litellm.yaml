@@ -1,0 +1,54 @@
+# LiteLLM routing config
+# - Local tiers route via llama-swap. Aliases match the groups in
+#   llama-swap/config.yml: task / heavy / embeddings.
+# - Cloud tiers are named explicitly so the Worker can pick one by name.
+
+model_list:
+  # ── Local: fast tier (always-loaded, TTL=0) ──────────────────────────
+  - model_name: local-task
+    litellm_params:
+      model: openai/qwen3-4b
+      api_base: http://llama-swap:8080/v1
+      api_key: dummy
+
+  # ── Local: quality tier (on-demand, TTL=600s) ────────────────────────
+  - model_name: local-heavy
+    litellm_params:
+      model: openai/gpt-oss-20b
+      api_base: http://llama-swap:8080/v1
+      api_key: dummy
+
+  # ── Local: embeddings ────────────────────────────────────────────────
+  - model_name: local-embeddings
+    litellm_params:
+      model: openai/qwen3-embedding-8b
+      api_base: http://llama-swap:8080/v1
+      api_key: dummy
+
+  # ── Cloud: escalation tier ───────────────────────────────────────────
+  - model_name: claude-opus-4-7
+    litellm_params:
+      model: anthropic/claude-opus-4-7
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-sonnet-4-6
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: gpt-5
+    litellm_params:
+      model: openai/gpt-5
+      api_key: os.environ/OPENAI_API_KEY
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
+  telemetry: false
+  # Token-usage + cost on every completion
+  success_callback: ["langfuse"]  # placeholder; real hook lands the row in D1
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  store_model_in_db: true

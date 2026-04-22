@@ -1,0 +1,11 @@
+# crm.sodimo.eu → Twenty CRM
+crm.sodimo.eu {
+    reverse_proxy twenty:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up Connection {>Connection}
+        header_up Upgrade {>Upgrade}
+    }
+}

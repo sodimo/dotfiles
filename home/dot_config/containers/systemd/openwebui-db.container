@@ -1,0 +1,20 @@
+[Unit]
+Description=OpenWebUI Postgres (pgvector)
+Wants=sodimo-network.service
+After=sodimo-network.service
+
+[Container]
+Image=docker.io/pgvector/pgvector:pg16
+ContainerName=openwebui-db
+Network=sodimo.network
+Volume=openwebui-db-data.volume:/var/lib/postgresql/data
+Environment=POSTGRES_DB=openwebui
+Environment=POSTGRES_USER=openwebui
+Environment=POSTGRES_PASSWORD=openwebui
+Environment=POSTGRES_HOST_AUTH_METHOD=md5
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=sodimo.target

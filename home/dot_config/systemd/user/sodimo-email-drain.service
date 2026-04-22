@@ -1,0 +1,20 @@
+# sodimo-email-drain — pull consumer for the CF Queue `email_outbox`.
+# Fires on sodimo.target; polls CF's HTTP pull API every 5-10s, validates
+# sender against ALLOWED_SENDERS, pipes to local Postfix via `sendmail -t`.
+# Principle 3 in concrete form — no inbound port, no CF Tunnel for email.
+
+[Unit]
+Description=Sodimo CF Queue email-drain
+Documentation=https://changelog.sodimo.eu/manual/15-design-principles/#principle-3
+After=network-online.target postfix.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/sodimo/email-drain.env
+ExecStart=%h/.local/bin/sodimo-email-drain
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=sodimo.target

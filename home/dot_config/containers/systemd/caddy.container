@@ -1,0 +1,37 @@
+# caddy — reverse proxy fronting every container that exposes HTTP.
+# See home/dot_config/caddy/ for the Caddyfile and per-service route files.
+#
+# Routing posture (Pivot 3):
+#   - cloudflared (separate host-level systemd unit) terminates the public
+#     *.sodimo.eu hostnames and forwards to Caddy on 127.0.0.1:80.
+#   - Caddy strips the host header and reverse-proxies to the container by
+#     name on sodimo.network (e.g. openwebui:8080).
+#   - Caddy never speaks TLS publicly — CF terminates at the edge.
+#   - Tailscale break-glass path bypasses CF and hits Caddy directly over
+#     the tailnet.
+
+[Unit]
+Description=Caddy reverse proxy
+Documentation=https://caddyserver.com/docs/
+Wants=sodimo-network.service
+After=sodimo-network.service
+
+[Container]
+Image=docker.io/library/caddy:2-alpine
+ContainerName=caddy
+Network=sodimo.network
+# Host ports: HTTP only. cloudflared → 127.0.0.1:80 → caddy → container.
+PublishPort=127.0.0.1:80:80
+PublishPort=127.0.0.1:443:443
+Volume=%h/.config/caddy/Caddyfile:/etc/caddy/Caddyfile:ro,Z
+Volume=%h/.config/caddy/routes:/etc/caddy/routes:ro,Z
+Volume=caddy-data.volume:/data
+Volume=caddy-config.volume:/config
+Environment=CADDY_ADMIN=off
+
+[Service]
+Restart=always
+TimeoutStartSec=120
+
+[Install]
+WantedBy=sodimo.target

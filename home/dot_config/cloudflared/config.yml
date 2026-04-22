@@ -1,0 +1,25 @@
+# cloudflared — single named tunnel exposing employee-facing hostnames.
+# The tunnel is managed by a host-level systemd unit (not a podman quadlet)
+# because cloudflared is pinned by the bootc image in `sodimo/harness`.
+#
+# Credentials file (cert.json + tunnel UUID json) lives at
+# /etc/cloudflared/ on the host, provisioned out-of-band.
+
+tunnel: PLACEHOLDER-TUNNEL-UUID
+credentials-file: /etc/cloudflared/PLACEHOLDER-TUNNEL-UUID.json
+
+# Every hostname below has a matching CF Access application in the
+# dashboard, gated against @sodimo.eu Google Workspace users.
+ingress:
+  - hostname: chat.sodimo.eu
+    service: http://localhost:80
+  - hostname: crm.sodimo.eu
+    service: http://localhost:80
+  - hostname: vault.sodimo.eu
+    service: http://localhost:80
+  - hostname: archive.sodimo.eu
+    service: http://localhost:80
+  - hostname: cockpit.sodimo.eu
+    service: http://localhost:80
+  # Catch-all
+  - service: http_status:404

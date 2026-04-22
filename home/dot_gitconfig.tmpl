@@ -1,0 +1,15 @@
+[user]
+    name = {{ .user.name }}
+    email = {{ .user.email }}
+
+[init]
+    defaultBranch = main
+
+[pull]
+    rebase = false
+
+[credential "https://github.com"]
+    helper = !gh auth git-credential
+
+[credential "https://gist.github.com"]
+    helper = !gh auth git-credential

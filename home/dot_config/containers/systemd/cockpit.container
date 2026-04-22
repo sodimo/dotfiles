@@ -1,0 +1,28 @@
+# cockpit — web-based system administration UI.
+# Runs against the host podman socket; exposes dashboards for services,
+# logs, storage, networking. Employee-facing for Paul day-one after
+# handoff; lets non-engineers restart units and read journals without ssh.
+
+[Unit]
+Description=Cockpit web UI
+Documentation=https://cockpit-project.org/
+Wants=sodimo-network.service
+After=sodimo-network.service
+
+[Container]
+Image=quay.io/cockpit/ws:latest
+ContainerName=cockpit
+Network=sodimo.network
+PublishPort=127.0.0.1:9090:9090
+# Host filesystem + systemd + podman socket access is the whole point.
+Volume=/:/host:ro
+Volume=/run/systemd:/run/systemd:ro
+Volume=%t/podman/podman.sock:/run/podman/podman.sock
+PodmanArgs=--privileged
+PodmanArgs=--pid=host
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=sodimo.target

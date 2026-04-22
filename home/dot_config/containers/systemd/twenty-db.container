@@ -1,0 +1,20 @@
+[Unit]
+Description=Twenty CRM Postgres
+Wants=sodimo-network.service
+After=sodimo-network.service
+
+[Container]
+Image=docker.io/postgres:16
+ContainerName=twenty-db
+Network=sodimo.network
+Volume=twenty-db-data.volume:/var/lib/postgresql/data
+Environment=POSTGRES_DB=default
+Environment=POSTGRES_USER=twenty
+Environment=POSTGRES_PASSWORD=twenty
+Environment=POSTGRES_HOST_AUTH_METHOD=md5
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=sodimo.target

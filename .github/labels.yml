@@ -1,0 +1,53 @@
+# Vendor taxonomy
+- name: vendored-upstream
+  color: "0075ca"
+  description: Run upstream unchanged (Postfix, Dovecot, Ollama, Tailscale)
+- name: hard-fork
+  color: "e4e669"
+  description: Diverged from upstream, no sync expected
+- name: soft-fork-inspired
+  color: "a2eeef"
+  description: Upstream as UX/architecture reference, original code
+- name: contrib-upstream
+  color: "7057ff"
+  description: Use upstream + send PRs back
+- name: home-built
+  color: "008672"
+  description: Original, no upstream
+
+# Chapters
+- name: ch1-ground-truth
+  color: "f9d0c4"
+- name: ch2-data-liberation
+  color: "f9d0c4"
+- name: ch3-email-freedom
+  color: "f9d0c4"
+- name: ch4-ai-layer
+  color: "f9d0c4"
+- name: ch5-transformation
+  color: "f9d0c4"
+- name: ch6-handover
+  color: "f9d0c4"
+- name: ch7-compound
+  color: "f9d0c4"
+
+# Priority
+- name: p0
+  color: "d73a4a"
+  description: Blocking
+- name: p1
+  color: "e99695"
+  description: This week
+- name: p2
+  color: "fef2c0"
+  description: This engagement
+
+# Standard
+- name: bug
+  color: "d73a4a"
+- name: enhancement
+  color: "a2eeef"
+- name: documentation
+  color: "0075ca"
+- name: chore
+  color: "e4e669"

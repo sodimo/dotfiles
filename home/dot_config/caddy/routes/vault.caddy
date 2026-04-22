@@ -1,0 +1,11 @@
+# vault.sodimo.eu → Vaultwarden
+vault.sodimo.eu {
+    # WebSocket endpoint for live sync
+    reverse_proxy /notifications/hub vaultwarden:3012
+    reverse_proxy vaultwarden:80 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}

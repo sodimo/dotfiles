@@ -1,0 +1,15 @@
+# cockpit.sodimo.eu → Cockpit
+# Note: cockpit listens on host 127.0.0.1:9090, not in the container network.
+cockpit.sodimo.eu {
+    reverse_proxy host.containers.internal:9090 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up Connection {>Connection}
+        header_up Upgrade {>Upgrade}
+        transport http {
+            tls_insecure_skip_verify
+        }
+    }
+}
