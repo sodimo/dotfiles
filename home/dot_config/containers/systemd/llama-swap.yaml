@@ -1,9 +1,18 @@
 # llama-swap routing config
+#
+# Hardware: AMD Strix Halo (gfx1151), 128 GB unified memory.
+# Backend: Vulkan via mostlygeek/llama-swap:vulkan (bundles llama-server).
+# Flag baselines are sourced from kyuz0/amd-strix-halo-toolboxes
+# (docs/models.ini.example). See docs/kyuz0-toolbox.md for the
+# interpolation map and resync procedure.
+#
 # Groups control concurrency + TTL:
 #   - task:       always-loaded (TTL=0), small, fast.
-#   - heavy:      on-demand, TTL=600s (unload after 10 min idle).
+#   - heavy:      on-demand, TTL=600s, exclusive swap (one-at-a-time).
 #   - embeddings: always-loaded, used by RAG if/when enabled.
-# Vulkan driver choice per model — RADV for token-heavy, AMDVLK for prompt-heavy.
+#
+# Model files live on the harness at %h/.local/share/llama-models/ and
+# are mounted read-only at /models inside the llama-swap container.
 
 healthCheckTimeout: 120
 
@@ -23,49 +32,84 @@ models:
   qwen3-4b:
     aliases: [qwen3-4b, local-task]
     cmd: |
-      ramalama --runtime llama.cpp run
-      --name qwen3-4b
+      /app/llama-server
+      --host 0.0.0.0
       --port 8001
-      --ngl 99
+      -m /models/Qwen3-4B-Instruct-Q4_K_M.gguf
       --ctx-size 32768
       --temp 0.6
-      --flash-attn on
-      --vulkan-driver radv
-      hf://Qwen/Qwen3-4B-Instruct-Q4_K_M.gguf
-    proxy: http://llama-swap:8001
+      -ngl 999
+      --no-mmap
+      -fa on
+      --batch-size 4096
+      --ubatch-size 512
+      --cache-type-k q8_0
+      --cache-type-v q8_0
+      --jinja
+      --direct-io
+      --cache-prompt
+      --cache-reuse 256
+      --threads 12
+    proxy: http://127.0.0.1:8001
     ttl: 0
     group: task
 
   # ── On-demand quality tier ───────────────────────────────────────────
-  gpt-oss-20b:
-    aliases: [gpt-oss-20b, local-heavy]
+  # gpt-oss-120b: unsloth UD-Q8_K_XL quant, sharded across 2 GGUF files
+  # (00001-of-00002 + 00002-of-00002). llama-server follows the shard
+  # chain automatically when pointed at the first shard.
+  # kyuz0 recommends AMDVLK for prompt-heavy / long-context workloads;
+  # the bundled image only ships the RADV Vulkan ICD, so we run on RADV
+  # here and flag AMDVLK as an open question in docs/kyuz0-toolbox.md.
+  gpt-oss-120b:
+    aliases: [gpt-oss-120b, local-heavy]
     cmd: |
-      ramalama --runtime llama.cpp run
-      --name gpt-oss-20b
+      /app/llama-server
+      --host 0.0.0.0
       --port 8002
-      --ngl 99
+      -m /models/gpt-oss-120b-UD-Q8_K_XL-00001-of-00002.gguf
       --ctx-size 65536
-      --temp 0.7
-      --flash-attn on
-      --vulkan-driver amdvlk
-      hf://Qwen/gpt-oss-20b-Q4_K_M.gguf
-    proxy: http://llama-swap:8002
+      --temp 0.8
+      --min-p 0.05
+      --chat-template-kwargs '{"reasoning_effort":"high"}'
+      -ngl 999
+      --no-mmap
+      -fa on
+      --batch-size 4096
+      --ubatch-size 512
+      --cache-type-k q8_0
+      --cache-type-v q8_0
+      --jinja
+      --direct-io
+      --cache-prompt
+      --cache-reuse 256
+      --threads 12
+    proxy: http://127.0.0.1:8002
     ttl: 600
     group: heavy
 
   qwen3-30b:
     aliases: [qwen3-30b-coder]
     cmd: |
-      ramalama --runtime llama.cpp run
-      --name qwen3-30b
+      /app/llama-server
+      --host 0.0.0.0
       --port 8003
-      --ngl 99
+      -m /models/Qwen3-Coder-30B-Instruct-Q4_K_M.gguf
       --ctx-size 65536
       --temp 0.3
-      --flash-attn on
-      --vulkan-driver amdvlk
-      hf://Qwen/Qwen3-Coder-30B-Instruct-Q4_K_M.gguf
-    proxy: http://llama-swap:8003
+      -ngl 999
+      --no-mmap
+      -fa on
+      --batch-size 4096
+      --ubatch-size 512
+      --cache-type-k q8_0
+      --cache-type-v q8_0
+      --jinja
+      --direct-io
+      --cache-prompt
+      --cache-reuse 256
+      --threads 12
+    proxy: http://127.0.0.1:8003
     ttl: 600
     group: heavy
 
@@ -73,13 +117,23 @@ models:
   qwen3-embedding:
     aliases: [qwen3-embedding, local-embeddings]
     cmd: |
-      ramalama --runtime llama.cpp run
-      --name qwen3-embedding
+      /app/llama-server
+      --host 0.0.0.0
       --port 8004
+      -m /models/Qwen3-Embedding-8B-Q8_0.gguf
       --embedding
-      --ngl 99
-      --vulkan-driver radv
-      hf://Qwen/Qwen3-Embedding-8B-Q8_0.gguf
-    proxy: http://llama-swap:8004
+      -ngl 999
+      --no-mmap
+      -fa on
+      --batch-size 4096
+      --ubatch-size 512
+      --cache-type-k q8_0
+      --cache-type-v q8_0
+      --jinja
+      --direct-io
+      --cache-prompt
+      --cache-reuse 256
+      --threads 12
+    proxy: http://127.0.0.1:8004
     ttl: 0
     group: embeddings

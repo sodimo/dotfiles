@@ -4,10 +4,15 @@
 # Hardware: Framework Desktop, AMD Strix Halo (iGPU gfx1151, 40 RDNA 3.5
 # compute units, 128 GB unified memory).
 #
-# Backend posture: Vulkan via the ramalama container (RADV for token-gen,
-# AMDVLK for long-context). ROCm on Strix Halo's iGPU is fragile and
-# upstream-bleeding-edge; Vulkan is the production path per leger-labs
-# benchmarking on the same silicon.
+# Backend posture: Vulkan. The mostlygeek/llama-swap:vulkan image ships
+# /app/llama-server linked against libggml-vulkan.so and only carries
+# the Mesa RADV ICD — AMDVLK is aspirational and tracked in
+# docs/kyuz0-toolbox.md. ROCm on Strix Halo's iGPU is fragile per
+# kyuz0's recommendation, so Vulkan is the production path.
+#
+# llama-server flag baselines (no-mmap, -fa on, -ngl 999, q8_0 KV cache,
+# --direct-io, etc.) come from kyuz0/amd-strix-halo-toolboxes and are
+# applied in llama-swap.yaml. See docs/resync-runbook.md for refresh.
 
 [Unit]
 Description=llama-swap gateway
@@ -23,12 +28,18 @@ PublishPort=127.0.0.1:9292:8080
 # GPU passthrough (ramalama spawns llama.cpp containers that inherit these)
 AddDevice=/dev/dri
 AddDevice=/dev/kfd
-GroupAdd=keep-groups
+# `GroupAdd=keep-groups` + `PodmanArgs=--group-add=render` conflict under
+# rootless podman 5.8.2 (verified in task #5 smoke). Keeping just `--group-add=video`.
+# /dev/kfd is a ROCm node and unused on the Vulkan path — tracked for possible
+# removal in sodimo/dotfiles#14 (ramalama vestige investigation).
 PodmanArgs=--group-add=video
-PodmanArgs=--group-add=render
-# Config + model cache
+# Config + GGUF model store
+# Model files (incl. multi-shard GGUFs like gpt-oss-120b) live directly
+# on the harness filesystem; mounted read-only so llama-server can mmap
+# them without needing ramalama or HuggingFace cache layout inside the
+# container. See docs/kyuz0-toolbox.md for rationale.
 Volume=%h/.config/containers/systemd/llama-swap.yaml:/app/config.yaml:ro,Z
-Volume=%h/.local/share/ramalama:/root/.local/share/ramalama:ro,Z
+Volume=%h/.local/share/llama-models:/models:ro,Z
 Volume=%t/podman/podman.sock:/var/run/docker.sock
 Environment=HSA_OVERRIDE_GFX_VERSION=11.0.0
 Exec=--config /app/config.yaml --listen :8080

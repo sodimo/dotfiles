@@ -14,7 +14,7 @@ model_list:
   # ── Local: quality tier (on-demand, TTL=600s) ────────────────────────
   - model_name: local-heavy
     litellm_params:
-      model: openai/gpt-oss-20b
+      model: openai/gpt-oss-120b
       api_base: http://llama-swap:8080/v1
       api_key: dummy
 

@@ -21,8 +21,14 @@ Network=sodimo.network
 PublishPort=25:25
 PublishPort=587:587
 PublishPort=465:465
-Volume=%h/.config/containers/systemd/postfix-main.cf:/etc/postfix/main.cf:ro,Z
-Volume=%h/.config/containers/systemd/postfix-master.cf:/etc/postfix/master.cf:ro,Z
+# main.cf + master.cf config mounts intentionally disabled — the files don't
+# yet exist in the repo. Postfix uses env-based config (POSTFIX_* vars in
+# postfix.env) which is sufficient for the outbound-via-CF-Queue posture.
+# Real postfix config authoring is tracked at
+# https://github.com/sodimo/dotfiles/issues/18; re-enable these mounts alongside
+# that PR.
+# Volume=%h/.config/containers/systemd/postfix-main.cf:/etc/postfix/main.cf:ro,Z
+# Volume=%h/.config/containers/systemd/postfix-master.cf:/etc/postfix/master.cf:ro,Z
 Volume=postfix-spool.volume:/var/spool/postfix
 Volume=postfix-data.volume:/var/lib/postfix
 EnvironmentFile=%h/.config/containers/systemd/postfix.env
