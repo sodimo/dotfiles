@@ -1,0 +1,83 @@
+# postfix main.cf — Sodimo mail stack.
+# Mounted read-only into the boky/postfix:4.3.0 container at /etc/postfix/main.cf.
+#
+# Design (see changelog manual 34-mail.md):
+#   * Inbound: MX points at harness.sodimo.eu; Postfix receives :25 for
+#     sodimo.eu + sodimonet.fr + yallafood.eu + cavisteduliban.fr.
+#   * Outbound (AI path): email_send MCP tool on the Cloudflare Worker writes
+#     to the email_outbox queue; sodimo-email-drain.service on the harness
+#     pulls and pipes to `sendmail -t`. No direct agent → sendmail shortcut.
+#   * Virtual delivery: LMTP to Dovecot at dovecot:24 on sodimo.network.
+#   * DKIM signing + spam filter: rspamd milter at rspamd:11332.
+#   * Archive: Piler receives a BCC copy of every message via always_bcc.
+#
+# Settings here are the *structural* ones. Tunables (hostname, mynetworks,
+# tls levels, milter config) come from POSTFIX_* env vars in postfix.env
+# and are merged by the boky/postfix entrypoint at start.
+# =============================================================================
+
+# --- Paths & identity (env overrides most of these at runtime) ---------------
+queue_directory     = /var/spool/postfix
+command_directory   = /usr/sbin
+daemon_directory    = /usr/libexec/postfix
+data_directory      = /var/lib/postfix
+mail_owner          = postfix
+
+myhostname          = mail.sodimo.eu
+mydomain            = sodimo.eu
+myorigin            = $mydomain
+inet_interfaces     = all
+inet_protocols      = ipv4
+mydestination       = $myhostname, localhost.$mydomain, localhost
+mynetworks_style    = host
+mynetworks          = 10.89.0.0/24, 127.0.0.0/8
+
+# --- Local + virtual delivery ------------------------------------------------
+# No local Unix delivery; everything routes through the virtual transport to
+# Dovecot LMTP.
+local_transport            = error:local delivery disabled, use virtual
+local_recipient_maps       =
+virtual_mailbox_domains    = sodimo.eu sodimonet.fr yallafood.eu cavisteduliban.fr
+virtual_transport          = lmtp:inet:dovecot:24
+
+# Virtual aliases + mailboxes are stored in Dovecot; Postfix just trusts the
+# LMTP peer for recipient validation.
+virtual_alias_maps         =
+virtual_mailbox_maps       =
+
+# --- Archive: BCC every message to Piler -------------------------------------
+# piler listens on :25 inside the podman network (mapped to 2525 host-side).
+always_bcc                 = archive@archive.sodimo.eu
+transport_maps             = inline:{ {archive.sodimo.eu=smtp:[piler]:25} }
+
+# --- Milter: rspamd signs outbound (DKIM) and scores inbound ----------------
+milter_protocol            = 6
+milter_default_action      = accept
+smtpd_milters              = inet:rspamd:11332
+non_smtpd_milters          = inet:rspamd:11332
+
+# --- TLS ---------------------------------------------------------------------
+# Opportunistic inbound + outbound TLS. Actual cert material mounted by the
+# boky/postfix image from /etc/ssl/postfix (managed upstream of the harness).
+smtpd_tls_security_level   = may
+smtp_tls_security_level    = may
+smtpd_tls_loglevel         = 1
+smtp_tls_loglevel          = 1
+smtpd_tls_received_header  = yes
+tls_random_source          = dev:/dev/urandom
+
+# --- SMTPD hardening ---------------------------------------------------------
+smtpd_helo_required            = yes
+smtpd_helo_restrictions        = permit_mynetworks, reject_invalid_helo_hostname
+smtpd_sender_restrictions      = permit_mynetworks, reject_non_fqdn_sender, reject_unknown_sender_domain
+smtpd_recipient_restrictions   = permit_mynetworks, reject_unauth_destination, reject_non_fqdn_recipient
+smtpd_relay_restrictions       = permit_mynetworks, reject_unauth_destination
+
+# --- Queue & limits ----------------------------------------------------------
+message_size_limit        = 52428800
+mailbox_size_limit        = 0
+maximal_queue_lifetime    = 4d
+bounce_queue_lifetime     = 1d
+
+# --- Logging -----------------------------------------------------------------
+maillog_file              = /dev/stdout

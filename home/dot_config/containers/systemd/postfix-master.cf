@@ -1,0 +1,63 @@
+# postfix master.cf — Sodimo mail stack.
+# Mounted read-only into the boky/postfix:4.3.0 container at /etc/postfix/master.cf.
+#
+# Three exposed services:
+#   :25   — inbound SMTP (MX target)
+#   :587  — submission (authenticated client relay; used by sodimo-email-drain
+#           and by in-network services such as vaultwarden that SMTP us)
+#   :465  — SMTPS wrapper (same handler as submission, TLS from connect)
+#
+# Columns: service type  private unpriv chroot wakeup maxproc command+args
+# =============================================================================
+
+# --- Inbound MX --------------------------------------------------------------
+smtp       inet  n       -       n       -       -       smtpd
+
+# --- Submission (587) --------------------------------------------------------
+# TLS required; AUTH required (mynetworks-only enforcement is sufficient for
+# in-podman-network relays; outside traffic will use SASL once SMTP-AUTH
+# tables are wired — deferred to the secrets pass).
+submission inet  n       -       n       -       -       smtpd
+  -o syslog_name=postfix/submission
+  -o smtpd_tls_security_level=encrypt
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_reject_unlisted_recipient=no
+  -o smtpd_client_restrictions=permit_mynetworks,permit_sasl_authenticated,reject
+  -o smtpd_relay_restrictions=permit_mynetworks,permit_sasl_authenticated,reject
+  -o milter_macro_daemon_name=ORIGINATING
+
+# --- SMTPS (465) -------------------------------------------------------------
+smtps      inet  n       -       n       -       -       smtpd
+  -o syslog_name=postfix/smtps
+  -o smtpd_tls_wrappermode=yes
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_reject_unlisted_recipient=no
+  -o smtpd_client_restrictions=permit_mynetworks,permit_sasl_authenticated,reject
+  -o smtpd_relay_restrictions=permit_mynetworks,permit_sasl_authenticated,reject
+  -o milter_macro_daemon_name=ORIGINATING
+
+# --- Internal daemons --------------------------------------------------------
+pickup     unix  n       -       n       60      1       pickup
+cleanup    unix  n       -       n       -       0       cleanup
+qmgr       unix  n       -       n       300     1       qmgr
+tlsmgr     unix  -       -       n       1000?   1       tlsmgr
+rewrite    unix  -       -       n       -       -       trivial-rewrite
+bounce     unix  -       -       n       -       0       bounce
+defer      unix  -       -       n       -       0       bounce
+trace      unix  -       -       n       -       0       bounce
+verify     unix  -       -       n       -       1       verify
+flush      unix  n       -       n       1000?   0       flush
+proxymap   unix  -       -       n       -       -       proxymap
+proxywrite unix  -       -       n       -       1       proxymap
+smtp       unix  -       -       n       -       -       smtp
+relay      unix  -       -       n       -       -       smtp
+showq      unix  n       -       n       -       -       showq
+error      unix  -       -       n       -       -       error
+retry      unix  -       -       n       -       -       error
+discard    unix  -       -       n       -       -       discard
+local      unix  -       n       n       -       -       local
+virtual    unix  -       n       n       -       -       virtual
+lmtp       unix  -       -       n       -       -       lmtp
+anvil      unix  -       -       n       -       1       anvil
+scache     unix  -       -       n       -       1       scache
+postlog    unix-dgram n  -       n       -       1       postlogd

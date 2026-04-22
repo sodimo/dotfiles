@@ -17,6 +17,12 @@ PublishPort=127.0.0.1:3100:3100
 EnvironmentFile=%h/.config/sodimo/paperclip.env
 Volume=paperclip-data.volume:/paperclip:Z
 Volume=%h/.config/sodimo/paperclip/models.json:/paperclip/.pi/agent/models.json:ro,Z
+# Rootless podman (5.8.2) + the upstream paperclip entrypoint's `gosu node`
+# crash with `operation not permitted` because the in-container userns has
+# no CAP_SETUID over the host-UID range. Run Node directly as uid 1000 and
+# skip the docker-entrypoint.sh shim entirely. See sodimo/dotfiles#16.
+User=1000:1000
+Exec=node --import ./server/node_modules/tsx/dist/loader.mjs server/dist/index.js
 
 [Service]
 Restart=on-failure

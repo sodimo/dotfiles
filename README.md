@@ -60,6 +60,49 @@ chezmoi apply -n     # dry-run
 podman quadlet -dryrun -user ~/.config/containers/systemd/  # validate quadlets parse
 ```
 
+## Upgrade loop
+
+Every change to a quadlet, env file or Caddy route reaches a running harness
+through the same four steps. Run them in order from any harness shell with
+`chezmoi` pointed at the repo.
+
+1. **Bump the tag.** Cut a new calver tag on `main` (`YYYY-MM-DD-dotfiles`).
+   Release-please handles the `CHANGELOG.md` update; the tag is what
+   `chezmoi update` pulls against.
+
+2. **Render.** `chezmoi apply` writes the new sources to the live locations
+   under `~/.config/` — `*.env.tmpl` becomes `*.env`, `dot_*` becomes `.*`,
+   secrets are decrypted.
+
+3. **Daemon-reload.** `systemctl --user daemon-reload` tells systemd to
+   re-read the generated unit files that Quadlet produced from the new
+   `.container` / `.volume` / `.network` sources.
+
+4. **Restart the touched unit.** `systemctl --user restart <unit>.service`
+   — for example `systemctl --user restart openwebui.service`. The whole
+   stack does not need to bounce; only the units whose source changed.
+
+```bash
+# One-shot upgrade for a single service
+chezmoi update                               # 1 + 2
+systemctl --user daemon-reload               # 3
+systemctl --user restart paperclip.service   # 4
+```
+
+**Rollback.** Revert the offending commit, re-apply, restart:
+
+```bash
+git -C ~/.local/share/chezmoi revert <SHA>   # against the local chezmoi source dir
+chezmoi apply
+systemctl --user daemon-reload
+systemctl --user restart paperclip.service
+```
+
+Per-quadlet specifics (ports, env keys, known gotchas) live in
+[changelog.sodimo.eu ch38 Quadlet reference](https://changelog.sodimo.eu/manual/38-quadlet-reference/).
+OS-layer equivalent (image-based `bootc switch` / `bootc rollback`) lives
+in [`sodimo/harness`](https://github.com/sodimo/harness).
+
 ## Releases
 
 Calver tags: `YYYY-MM-DD-dotfiles`. See [`CHANGELOG.md`](CHANGELOG.md).
