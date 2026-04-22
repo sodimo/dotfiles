@@ -1,0 +1,11 @@
+# paperclip.sodimo.eu → Paperclip (agent runtime UI + API on :3100)
+paperclip.sodimo.eu {
+    reverse_proxy paperclip:3100 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up Connection {>Connection}
+        header_up Upgrade {>Upgrade}
+    }
+}

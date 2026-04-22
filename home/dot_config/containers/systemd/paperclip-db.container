@@ -1,0 +1,20 @@
+[Unit]
+Description=Paperclip Postgres
+Wants=sodimo-network.service
+After=sodimo-network.service
+
+[Container]
+Image=docker.io/postgres:16
+ContainerName=paperclip-db
+Network=sodimo.network
+Volume=paperclip-db-data.volume:/var/lib/postgresql/data
+Environment=POSTGRES_DB=paperclip
+Environment=POSTGRES_USER=paperclip
+Environment=POSTGRES_PASSWORD=paperclip
+Environment=POSTGRES_HOST_AUTH_METHOD=md5
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=sodimo.target

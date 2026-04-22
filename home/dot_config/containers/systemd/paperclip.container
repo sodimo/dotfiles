@@ -1,0 +1,26 @@
+# paperclip — agent runtime for claude-code + pi-mono, driven through LiteLLM.
+# Image is our own derived build layering @mariozechner/pi on top of upstream
+# ghcr.io/paperclipai/paperclip:sha-b8725c5 (v2026.416.0). See docker/paperclip/
+# Dockerfile. Tag placeholder until the derived image is built and published.
+
+[Unit]
+Description=Paperclip agent runtime
+Documentation=https://docs.paperclip.ing
+Wants=sodimo-network.service paperclip-db.service litellm.service
+After=sodimo-network.service paperclip-db.service litellm.service
+
+[Container]
+Image=ghcr.io/sodimo/paperclip:v2026.416.0-pi0.x.y
+ContainerName=paperclip
+Network=sodimo.network
+PublishPort=127.0.0.1:3100:3100
+EnvironmentFile=%h/.config/sodimo/paperclip.env
+Volume=paperclip-data.volume:/paperclip:Z
+Volume=%h/.config/sodimo/paperclip/models.json:/paperclip/.pi/agent/models.json:ro,Z
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=300
+
+[Install]
+WantedBy=sodimo.target

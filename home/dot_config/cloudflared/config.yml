@@ -21,5 +21,7 @@ ingress:
     service: http://localhost:80
   - hostname: cockpit.sodimo.eu
     service: http://localhost:80
+  - hostname: paperclip.sodimo.eu
+    service: http://localhost:80
   # Catch-all
   - service: http_status:404

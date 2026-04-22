@@ -1,0 +1,12 @@
+{
+  "providers": {
+    "anthropic": {
+      "baseUrl": "http://litellm:4000",
+      "apiKey": "LITELLM_MASTER_KEY"
+    },
+    "openai": {
+      "baseUrl": "http://litellm:4000",
+      "apiKey": "LITELLM_MASTER_KEY"
+    }
+  }
+}
