@@ -33,3 +33,6 @@ jobs:
 
       - name: Check D-167 digest pins
         run: ./scripts/check-digest-pins.sh
+
+      - name: Validate Caddyfile + routes
+        run: ./scripts/check-caddyfile.sh

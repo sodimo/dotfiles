@@ -1,0 +1,33 @@
+# .pre-commit-config.yaml — local and CI gate for config-file correctness.
+#
+# Install: `pipx install pre-commit && pre-commit install`
+#
+# Escape hatches (for legitimately-broken-at-commit-time state):
+#   SKIP_CADDY_VALIDATE=1 git commit ...     # skip the Caddyfile validate hook
+#   SKIP=caddy-validate git commit ...       # same, pre-commit native flag
+---
+repos:
+  - repo: local
+    hooks:
+      - id: caddy-validate
+        name: caddy validate (Caddyfile + routes/*.caddy)
+        description: >
+          Run `caddy validate` inside a caddy:2-alpine container against the
+          Caddyfile and every routes/*.caddy. Same image the quadlet runs in
+          production. Catches parse errors before the proxy falls over on
+          `systemctl --user restart caddy.service`.
+        language: system
+        entry: scripts/check-caddyfile.sh
+        pass_filenames: false
+        files: ^home/dot_config/caddy/.*
+
+      - id: check-digest-pins
+        name: D-167 digest pins
+        description: >
+          Fail the commit if any quadlet .container Image= line is missing
+          its @sha256: content-addressable suffix. Allow-list: cockpit,
+          paperclip (see scripts/check-digest-pins.sh header for why).
+        language: system
+        entry: scripts/check-digest-pins.sh
+        pass_filenames: false
+        files: ^home/dot_config/containers/systemd/.*\.container$
