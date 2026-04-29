@@ -13,7 +13,7 @@ After=sodimo-network.service openwebui-db.service openwebui-redis.service
 Image=ghcr.io/open-webui/open-webui:main@sha256:1e834205e71a97812c8e3e8cbf05e7ab40887143a65aa78b85fe7930d5892f0d
 ContainerName=openwebui
 Network=sodimo.network
-PublishPort=127.0.0.1:3000:8080
+PublishPort=3000:8080
 EnvironmentFile=%h/.config/containers/systemd/openwebui.env
 Volume=openwebui-data.volume:/app/backend/data
 
