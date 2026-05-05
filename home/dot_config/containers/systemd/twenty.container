@@ -13,8 +13,15 @@ After=sodimo-network.service twenty-db.service twenty-redis.service
 Image=docker.io/twentycrm/twenty:v2.0.0@sha256:0250911a2c44652772aaf8f59f42e8313e8d97fe300412ac3aa49a7092093576
 ContainerName=twenty
 Network=sodimo.network
+# 2026-05-05: published on LAN + Tailscale (no 127.0.0.1 bind) so office
+# devices reach http://192.168.0.134:3333 during demo. REVERT to
+# `127.0.0.1:3333:3000` once cloudflared + crm.sodimo.eu go live and the
+# only path in is via Caddy on the host loopback.
 PublishPort=3333:3000
 EnvironmentFile=%h/.config/containers/systemd/twenty.env
+# TM-01 (#27): twenty-data is a named volume today; will move to a
+# bind-mount under /var/lib/sodimo-data/twenty/ when the bootc backup
+# boundary lands.
 Volume=twenty-data.volume:/app/packages/twenty-server/.local-storage
 
 [Service]

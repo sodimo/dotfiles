@@ -1,0 +1,44 @@
+# Cockpit — host-shipped (system-scope), not a quadlet.
+# =============================================================================
+# Why this snippet exists
+# -----------------------
+# The bootc image (sodimo/harness) ships cockpit.socket system-scope. The
+# rootless cockpit.container quadlet that used to live in this repo was retired
+# (sodimo/dotfiles#23) because it fought the host cockpit for port 9090 and
+# the auth model is identical between the two paths anyway (PAM against
+# /etc/shadow).
+#
+# Activation (system-scope, on the harness, one-time):
+#
+#   sudo systemctl enable --now cockpit.socket
+#
+# Cockpit then listens on [::]:9090. Verify with:
+#
+#   ss -tlnp | grep :9090
+#   curl -k https://127.0.0.1:9090/   # 200 OK, login form
+#
+# Public path (post-cloudflared, post-CF-Access)
+# ----------------------------------------------
+# 1. cloudflared host unit forwards `cockpit.sodimo.eu` to 127.0.0.1:9090.
+# 2. Caddy route `cockpit.caddy` proxies to host.containers.internal:9090.
+# 3. CF Access policy gates the hostname against Google Workspace; only
+#    `@sodimo.eu` identities reach the cockpit-ws login.
+# 4. To trust the CF Access JWT/header instead of asking PAM again, edit the
+#    host-side /etc/cockpit/cockpit.conf (NOT this file) with:
+#
+#      [WebService]
+#      Origins = https://cockpit.sodimo.eu wss://cockpit.sodimo.eu
+#      ProtocolHeader = X-Forwarded-Proto
+#      AllowUnencrypted = true
+#
+#      [basic]
+#      action = none
+#
+#    See https://cockpit-project.org/guide/latest/authentication for the
+#    upstream-supported header pass-through shape.
+#
+# Why the sodimo OS user has no password
+# --------------------------------------
+# `sodimo` keeps NP (no-password) in /etc/shadow; SSH-key over Tailscale is the
+# break-glass path. Cockpit web is intentionally unreachable until CF Access
+# fronts it. See `midday-handoff-cockpit-no-passwordless-web.md` (2026-05-05).

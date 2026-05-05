@@ -1,9 +1,12 @@
-# archive.sodimo.eu → Piler email archive
+# archive.sodimo.eu → Piler email archive (read-only browse; pull-archive
+# fed by the imapsync side of the hybrid Purelymail mail decision, see
+# project_sodimo_email_arch).
 archive.sodimo.eu {
     reverse_proxy piler:80 {
         header_up Host {host}
         header_up X-Real-IP {remote_host}
         header_up X-Forwarded-For {remote_host}
         header_up X-Forwarded-Proto {scheme}
+        header_up CF-Access-Authenticated-User-Email {http.request.header.cf-access-authenticated-user-email}
     }
 }

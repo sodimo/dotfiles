@@ -7,5 +7,6 @@ paperclip.sodimo.eu {
         header_up X-Forwarded-Proto {scheme}
         header_up Connection {>Connection}
         header_up Upgrade {>Upgrade}
+        header_up CF-Access-Authenticated-User-Email {http.request.header.cf-access-authenticated-user-email}
     }
 }
