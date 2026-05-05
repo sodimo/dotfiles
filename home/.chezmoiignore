@@ -1,3 +1,23 @@
 README.md
 *.md
 LICENSE
+
+# Env files in the dotfiles tree are SHAPE-ONLY references with CHANGEME-* placeholders.
+# chezmoi must NOT overwrite the live env files on the box, which carry real
+# secrets populated by `vault-fetch` (see home/dot_local/bin/executable_vault-fetch)
+# at deploy time. Live files live at:
+#   - ~/.config/sodimo/<service>.env
+#   - ~/.config/containers/systemd/<service>.env (legacy path; being migrated)
+# Both are mode 0600 and source-of-truth for whatever is actually running.
+.config/sodimo/paperclip.env
+.config/sodimo/vaultwarden.env
+.config/sodimo/twenty.env
+.config/sodimo/litellm.env
+.config/sodimo/openwebui.env
+.config/containers/systemd/openwebui.env
+.config/containers/systemd/litellm.env
+.config/containers/systemd/vaultwarden.env
+.config/containers/systemd/twenty.env
+.config/containers/systemd/postfix.env
+.config/containers/systemd/piler.env
+.config/containers/systemd/piler-mysql.env

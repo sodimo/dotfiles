@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+# vault-fetch — pull a single key (or a whole service envelope) from
+# Vaultwarden into ~/.config/sodimo/<service>.env using the bw CLI.
+#
+# Replaces the never-lit chezmoi age-templating path (sodimo/dotfiles#24).
+# Run at deploy time, after a fresh `chezmoi apply` has dropped the
+# CHANGEME-* shape file under ~/.config/sodimo/<service>.env.
+#
+# Usage:
+#   vault-fetch <service> <KEY>             # fetch one key, print to stdout
+#   vault-fetch <service>                   # fetch every key for the service
+#                                           #   into ~/.config/sodimo/<service>.env
+#                                           #   (idempotent, mode 0600)
+#
+# Vaultwarden item shape (one item per key):
+#   - Folder: sodimo/<service>
+#   - Item name: sodimo/<service>/<KEY>
+#   - The secret value is the item's "password" field
+#
+# Auth model:
+#   bw login is interactive on first run; afterwards `bw unlock --raw` returns
+#   a session token. Export it as $BW_SESSION before invoking this script for
+#   non-interactive use:
+#
+#     export BW_SESSION="$(bw unlock --raw)"
+#     vault-fetch twenty
+#
+#   Sessions expire after ~1 hour of inactivity (Bitwarden default). Re-unlock
+#   when bw returns 'Vault is locked.'
+#
+# Idempotency:
+#   No-op when ~/.config/sodimo/<service>.env is mtime-newer than the most
+#   recent vault item for that service. Use `--force` to bypass.
+
+set -euo pipefail
+
+readonly SODIMO_ENV_DIR="${HOME}/.config/sodimo"
+readonly BW_SERVER="${BW_SERVER:-https://vault.sodimo.eu}"
+
+usage() {
+    sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+    exit "${1:-2}"
+}
+
+err() {
+    printf 'vault-fetch: %s\n' "$*" >&2
+    exit 1
+}
+
+need_bw() {
+    command -v bw >/dev/null 2>&1 || err "bw (Bitwarden CLI) not found in PATH; install with 'npm i -g @bitwarden/cli' or 'brew install bitwarden-cli'"
+}
+
+ensure_session() {
+    if [[ -z "${BW_SESSION:-}" ]]; then
+        local status
+        status="$(bw status --raw 2>/dev/null | jq -r '.status' 2>/dev/null || echo "unauthenticated")"
+        case "${status}" in
+            unlocked)
+                ;;
+            locked)
+                err "BW_SESSION not set and vault is locked; run: export BW_SESSION=\"\$(bw unlock --raw)\""
+                ;;
+            unauthenticated|*)
+                err "bw is not logged in; run: bw config server ${BW_SERVER} && bw login"
+                ;;
+        esac
+    fi
+}
+
+fetch_one() {
+    local service="$1" key="$2"
+    local item_name="sodimo/${service}/${key}"
+    local value
+    value="$(bw get password "${item_name}" 2>/dev/null)" || err "no item '${item_name}' in vault"
+    printf '%s\n' "${value}"
+}
+
+fetch_all() {
+    local service="$1" force="${2:-0}"
+    mkdir -p "${SODIMO_ENV_DIR}"
+    local target="${SODIMO_ENV_DIR}/${service}.env"
+
+    # List every item under folder sodimo/<service>; the bw search matches the
+    # `name` prefix exactly.
+    local items
+    items="$(bw list items --search "sodimo/${service}/" 2>/dev/null \
+        | jq -c '.[] | select(.name | startswith("sodimo/'"${service}"'/"))' )"
+    [[ -n "${items}" ]] || err "no items under sodimo/${service}/ in vault"
+
+    if [[ -e "${target}" && "${force}" != "1" ]]; then
+        local target_mtime newest_mtime
+        target_mtime="$(stat -c %Y "${target}")"
+        newest_mtime="$(printf '%s\n' "${items}" \
+            | jq -r '.revisionDate // .creationDate' \
+            | xargs -I{} date -d {} +%s \
+            | sort -n | tail -1)"
+        if [[ "${target_mtime}" -ge "${newest_mtime}" ]]; then
+            printf 'vault-fetch: %s up-to-date (mtime %s >= newest vault revision %s); use --force to re-fetch\n' \
+                "${target}" "${target_mtime}" "${newest_mtime}"
+            return 0
+        fi
+    fi
+
+    local tmp
+    tmp="$(mktemp "${target}.XXXXXX")"
+    chmod 0600 "${tmp}"
+    {
+        printf '# %s — populated by vault-fetch on %s\n' "${service}" "$(date -Iseconds)"
+        printf '# Source: Vaultwarden items under folder sodimo/%s/\n' "${service}"
+        printf '\n'
+        printf '%s\n' "${items}" \
+            | jq -r '"\(.name | sub("sodimo/'"${service}"'/"; ""))=\(.login.password // .notes // "")"'
+    } > "${tmp}"
+    mv "${tmp}" "${target}"
+    chmod 0600 "${target}"
+    printf 'vault-fetch: wrote %s\n' "${target}"
+}
+
+main() {
+    case "${1:-}" in
+        -h|--help) usage 0 ;;
+        "") usage 2 ;;
+    esac
+
+    need_bw
+    ensure_session
+
+    local force=0
+    if [[ "${1:-}" == "--force" ]]; then force=1; shift; fi
+
+    local service="${1:-}"
+    local key="${2:-}"
+    [[ -n "${service}" ]] || usage 2
+
+    if [[ -n "${key}" ]]; then
+        fetch_one "${service}" "${key}"
+    else
+        fetch_all "${service}" "${force}"
+    fi
+}
+
+main "$@"

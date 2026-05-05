@@ -1,13 +1,18 @@
-encryption: age
-age:
-  identity: "{{ .chezmoi.homeDir }}/.config/chezmoi/key.txt"
-  # Recipient written at `chezmoi init` time on the harness; do NOT check in a real recipient.
-  recipient: "age1PLACEHOLDER-PROVISION-AT-INIT-TIME"
+# chezmoi data — Sodimo harness.
+# =============================================================================
+# Secrets used to live in age-encrypted files keyed off the recipient below,
+# rendered into *.env.tmpl files by chezmoi at apply time. That path was never
+# lit (#24): the .tmpl files have no `{{ }}` directives, real secrets are
+# hand-edited on the box, and the recipient was a perpetual placeholder. The
+# templating layer has been retired in favour of `vault-fetch` (#25), which
+# pulls real values from Vaultwarden into ~/.config/sodimo/<service>.env at
+# deploy time.
+#
+# This file is now reduced to non-secret operator/network metadata that
+# chezmoi may reference if the renderer is ever re-introduced; it is not
+# load-bearing for any currently-rendered file.
 
 data:
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Operator
-  # ═══════════════════════════════════════════════════════════════════════════
   user:
     name: "sodimo"
     email: "admin@sodimo.eu"
@@ -17,20 +22,14 @@ data:
     os: "{{ .chezmoi.os }}"
     timezone: "Europe/Paris"
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Network (internal podman bridge)
-  # ═══════════════════════════════════════════════════════════════════════════
   network:
     name: "sodimo"
     subnet: "10.89.0.0/24"
     gateway: "10.89.0.1"
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Cloudflare / Tailscale posture (from Pivot 3)
-  # ═══════════════════════════════════════════════════════════════════════════
   cloudflare:
-    # One tunnel routes every employee-facing hostname. CF Access policies
-    # gate each hostname at the edge against Google Workspace.
+    # Real values written at `chezmoi init` time on the harness from the CF
+    # dashboard; do NOT check in real values.
     tunnel_id: "PLACEHOLDER-REPLACE-AT-APPLY"
     account_id: "PLACEHOLDER-REPLACE-AT-APPLY"
     zone: "sodimo.eu"
@@ -38,64 +37,3 @@ data:
   tailscale:
     tailnet: "PLACEHOLDER.ts.net"
     node: "harness"
-    # Break-glass only — Tom's dev path. Employees never see this.
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Service endpoints (hostnames, ports, images)
-  # Keep this compact — full env lives in per-service .env files.
-  # ═══════════════════════════════════════════════════════════════════════════
-  services:
-    openwebui:
-      image: "ghcr.io/open-webui/open-webui:main"
-      port: 8080
-      host_port: 3000
-      subdomain: "chat"
-    openwebui_db:
-      image: "docker.io/pgvector/pgvector:pg16"
-    openwebui_redis:
-      image: "docker.io/redis:7-alpine"
-    litellm:
-      image: "ghcr.io/berriai/litellm:main-stable"
-      port: 4000
-      host_port: 4000
-    litellm_db:
-      image: "docker.io/pgvector/pgvector:pg16"
-    litellm_redis:
-      image: "docker.io/redis:7-alpine"
-    llama_swap:
-      # Vulkan image for AMD Strix Halo iGPU (gfx1151). ROCm not recommended
-      # for the Strix Halo iGPU; the ramalama Vulkan path via RADV/AMDVLK is
-      # the production posture on this hardware.
-      image: "ghcr.io/mostlygeek/llama-swap:vulkan"
-      port: 8080
-      host_port: 9292
-    caddy:
-      image: "docker.io/library/caddy:2-alpine"
-    cockpit:
-      image: "quay.io/cockpit/ws:latest"
-      host_port: 9090
-    twenty:
-      image: "twentycrm/twenty:v2.0.0"
-      port: 3000
-      host_port: 3333
-      subdomain: "crm"
-    twenty_worker:
-      image: "twentycrm/twenty:v2.0.0"
-    twenty_db:
-      image: "docker.io/postgres:16"
-    twenty_redis:
-      image: "docker.io/redis:7-alpine"
-    vaultwarden:
-      image: "docker.io/vaultwarden/server:1.32.7"
-      port: 80
-      host_port: 8222
-      subdomain: "vault"
-    postfix:
-      image: "docker.io/boky/postfix:4.3.0"
-    dovecot:
-      image: "docker.io/dovecot/dovecot:2.3.21.1"
-    rspamd:
-      image: "docker.io/rspamd/rspamd:3.9.1"
-    piler:
-      image: "docker.io/sutoj/piler:1.4.5"
-      subdomain: "archive"
