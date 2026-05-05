@@ -25,6 +25,8 @@ PublishPort=127.0.0.1:80:80
 PublishPort=127.0.0.1:443:443
 Volume=%h/.config/caddy/Caddyfile:/etc/caddy/Caddyfile:ro,Z
 Volume=%h/.config/caddy/routes:/etc/caddy/routes:ro,Z
+# TM-01 (#27): caddy-data is a named volume today; will move to a bind-mount
+# under /var/lib/sodimo-data/caddy/ when the bootc backup boundary lands.
 Volume=caddy-data.volume:/data
 Volume=caddy-config.volume:/config
 Environment=CADDY_ADMIN=off
