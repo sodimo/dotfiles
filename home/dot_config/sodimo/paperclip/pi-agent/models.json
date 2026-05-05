@@ -1,0 +1,21 @@
+{
+  "providers": {
+    "litellm": {
+      "baseUrl": "http://litellm:4000/v1",
+      "api": "openai-completions",
+      "apiKey": "CHANGEME-LITELLM-MASTER-KEY",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        { "id": "Qwen3.6-27b", "name": "Qwen3.6 27B (local)", "input": ["text", "image"], "contextWindow": 131072, "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 } },
+        { "id": "gemma-4-31b-it-spec", "name": "Gemma 4 31B (thinking, spec)", "contextWindow": 131072, "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 } },
+        { "id": "gemma-4-31b-it-spec-nonthinking", "name": "Gemma 4 31B (nonthinking, spec)", "contextWindow": 131072, "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 } },
+        { "id": "gemma-4-26b-a4b-spec", "name": "Gemma 4 26B MoE (thinking, spec)", "contextWindow": 131072, "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 } },
+        { "id": "gemma-4-26b-a4b-spec-nonthinking", "name": "Gemma 4 26B MoE (nonthinking, spec)", "contextWindow": 131072, "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 } },
+        { "id": "gemma-4-e2b", "name": "Gemma 4 E2B (small)", "contextWindow": 8192, "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 } }
+      ]
+    }
+  }
+}

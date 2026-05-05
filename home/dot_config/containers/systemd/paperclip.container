@@ -1,21 +1,24 @@
-# paperclip — agent runtime for claude-code (+ pi-mono later), driven through
-# LiteLLM. UPSTREAM tag pin until the derived ghcr.io/sodimo/paperclip publish
-# path is unblocked (sodimo/dotfiles#12).
+# paperclip — agent runtime for claude-code, codex, and pi (the local-models
+# CLI Sodimo standardizes on), driven through LiteLLM. Currently runs the
+# Sodimo-derived image that layers @mariozechner/pi-coding-agent (a.k.a.
+# pi-mono) on top of upstream paperclipai/paperclip:sha-b8725c5. The derived
+# image is built locally on the box with `podman build` (see midday-paperclip-
+# pi-setup.md) — ghcr.io publish is still blocked at sodimo/dotfiles#12.
 #
 # Upstream's canonical quadlet (paperclipai/paperclip @ docker/quadlet/) wraps
 # the app + db in a podman Pod and lets the docker-entrypoint.sh shim run as
 # root + gosu-drop to node. That shape requires rootful podman; under rootless
 # podman 5.8.2 the gosu-drop fails with 'operation not permitted' even with
-# --userns=keep-id:uid=1000,gid=1000 (verified 2026-05-05). We deviate two
+# --userns=keep-id:uid=1000,gid=1000 (verified 2026-05-05). We deviate three
 # ways from the upstream quadlet:
 #   1. Network=sodimo.network instead of Pod — paperclip needs to reach
 #      litellm:4000 and other sidecars on the shared network.
 #   2. PodmanArgs=--entrypoint=/usr/local/bin/node + Exec=<image CMD args>
 #      bypasses docker-entrypoint.sh entirely and runs node directly as
 #      uid 1000. Documented as sodimo/dotfiles#16 option-1 (quadlet-level).
-#      Option-2 (image-level entrypoint swap in docker/paperclip/Dockerfile)
-#      is the long-term fix; ships when ghcr.io/sodimo/paperclip publish
-#      auth lands and we resume building the derived image.
+#   3. UserNS=keep-id:uid=1000,gid=1000 — required so the pi-agent host bind
+#      mount appears as node-owned (uid 1000) inside the container instead of
+#      root-owned. Without this, pi can't mkdir its sessions/ subdir.
 
 [Unit]
 Description=Paperclip agent runtime
@@ -24,7 +27,10 @@ Wants=sodimo-network.service paperclip-db.service litellm.service
 After=sodimo-network.service paperclip-db.service litellm.service
 
 [Container]
-Image=ghcr.io/paperclipai/paperclip:sha-b8725c5
+# Image is built locally on the box: see docker/paperclip/Dockerfile. Bump
+# the date suffix on every rebuild so the systemd-generated podman command
+# uses the fresh layer instead of a cached older tag.
+Image=localhost/sodimo-paperclip:dev-2026-05-05
 ContainerName=paperclip
 Network=sodimo.network
 # 2026-05-05: LAN-published 3111:3100 (no 127.0.0.1 bind) so office colleagues
@@ -33,9 +39,14 @@ Network=sodimo.network
 PublishPort=3111:3100
 EnvironmentFile=%h/.config/sodimo/paperclip.env
 Volume=paperclip-data.volume:/paperclip:Z
-# pi-mono models.json bind disabled until derived image lands.
-# Volume=%h/.config/sodimo/paperclip/models.json:/paperclip/.pi/agent/models.json:ro,Z
+# pi-mono coding-agent state lives at /paperclip/.pi/agent/ inside the
+# container ($HOME=/paperclip). Bind-mounting the WHOLE agent dir (not just
+# models.json) so pi can write its sessions/, logs/, etc. as node:node.
+# UserNS=keep-id below maps host UID 1000 to container UID 1000 so the bind
+# mount appears node-owned inside.
+Volume=%h/.config/sodimo/paperclip/pi-agent:/paperclip/.pi/agent:Z
 User=1000:1000
+UserNS=keep-id:uid=1000,gid=1000
 PodmanArgs=--entrypoint=/usr/local/bin/node
 Exec=--import ./server/node_modules/tsx/dist/loader.mjs server/dist/index.js
 
