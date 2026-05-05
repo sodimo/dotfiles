@@ -1,5 +1,9 @@
-# cockpit.sodimo.eu → Cockpit
-# Note: cockpit listens on host 127.0.0.1:9090, not in the container network.
+# cockpit.sodimo.eu → Cockpit (host-shipped via the bootc image, system-scope)
+# The cockpit container quadlet was retired (#23): the bootc image already runs
+# cockpit.socket on the host at [::]:9090, and the rootless quadlet was just
+# fighting it for the port. Caddy proxies straight to host cockpit.
+# CF Access in front; cockpit's own basic-auth login is unreachable from the
+# public path because CF Access fronts the hostname.
 cockpit.sodimo.eu {
     reverse_proxy host.containers.internal:9090 {
         header_up Host {host}
@@ -8,6 +12,7 @@ cockpit.sodimo.eu {
         header_up X-Forwarded-Proto {scheme}
         header_up Connection {>Connection}
         header_up Upgrade {>Upgrade}
+        header_up CF-Access-Authenticated-User-Email {http.request.header.cf-access-authenticated-user-email}
         transport http {
             tls_insecure_skip_verify
         }
