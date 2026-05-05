@@ -2,8 +2,7 @@
 # check-digest-pins.sh — fail if any quadlet Image= pin is missing a
 # @sha256:... digest. Enforces D-167.
 #
-# Two explicit allow-list entries:
-#   cockpit.container      — D-167 explicit exemption (slow cadence, strong compat)
+# Single explicit allow-list entry:
 #   paperclip.container    — tracks sodimo/dotfiles#12 (ghcr.io/sodimo org
 #                            write:packages not yet granted; digest pin
 #                            arrives with the first published image)
@@ -21,7 +20,6 @@ if [[ ! -d "$systemd_dir" ]]; then
 fi
 
 allow_list=(
-  cockpit.container
   paperclip.container
 )
 
