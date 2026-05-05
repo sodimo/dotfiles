@@ -1,27 +1,17 @@
 # LiteLLM routing config
-# - Local tiers route via llama-swap. Aliases match the groups in
-#   llama-swap/config.yml: task / heavy / embeddings.
+# - Local tier routes via llama-swap.
 # - Cloud tiers are named explicitly so the Worker can pick one by name.
+#
+# Active local model as of 2026-05-05: only gemma-4-e2b.
+# Larger Gemma/Qwen variants land here once their rsyncs complete.
+# Older local-task / local-heavy / local-embeddings routes (qwen3-4b,
+# gpt-oss-120b, qwen3-embedding) were removed — no longer in use.
 
 model_list:
-  # ── Local: fast tier (always-loaded, TTL=0) ──────────────────────────
-  - model_name: local-task
+  # ── Local: Gemma 3 E2B (small, fast, always-loaded) ──────────────────
+  - model_name: gemma-4-e2b
     litellm_params:
-      model: openai/qwen3-4b
-      api_base: http://llama-swap:8080/v1
-      api_key: dummy
-
-  # ── Local: quality tier (on-demand, TTL=600s) ────────────────────────
-  - model_name: local-heavy
-    litellm_params:
-      model: openai/gpt-oss-120b
-      api_base: http://llama-swap:8080/v1
-      api_key: dummy
-
-  # ── Local: embeddings ────────────────────────────────────────────────
-  - model_name: local-embeddings
-    litellm_params:
-      model: openai/qwen3-embedding-8b
+      model: openai/gemma-4-e2b
       api_base: http://llama-swap:8080/v1
       api_key: dummy
 

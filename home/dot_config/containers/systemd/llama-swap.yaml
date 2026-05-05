@@ -7,12 +7,17 @@
 # interpolation map and resync procedure.
 #
 # Groups control concurrency + TTL:
-#   - task:       always-loaded (TTL=0), small, fast.
-#   - heavy:      on-demand, TTL=600s, exclusive swap (one-at-a-time).
-#   - embeddings: always-loaded, used by RAG if/when enabled.
+#   - task:   always-loaded (TTL=0), small, fast.
+#   - heavy:  on-demand, TTL=600s, exclusive swap (one-at-a-time).
 #
 # Model files live on the harness at %h/.local/share/llama-models/ and
 # are mounted read-only at /models inside the llama-swap container.
+#
+# Active model set as of 2026-05-05: only gemma-4-e2b is fully on disk.
+# Qwen3.6-27B and the larger Gemma 3 variants are rsync'ing in; their
+# entries land here once the transfers complete. Older Qwen3-4B,
+# gpt-oss-120b, Qwen3-Coder-30B, Qwen3-Embedding entries were removed
+# (no longer the chosen model set).
 
 healthCheckTimeout: 120
 
@@ -23,21 +28,22 @@ groups:
   heavy:
     swap: true
     exclusive: true
-  embeddings:
-    swap: false
-    exclusive: false
 
 models:
-  # ── Always-loaded task tier ──────────────────────────────────────────
-  qwen3-4b:
-    aliases: [qwen3-4b, local-task]
+  # ── Gemma 3 E2B (Unsloth UD-Q8_K_XL, ~5 GB) ──────────────────────────
+  # Small Gemma 3 instruct quant, fully rsync'd 2026-05-05.
+  # ttl=0 + group=task so it stays warm for OpenWebUI.
+  gemma-4-e2b:
+    aliases: [gemma-4-e2b, local-gemma-small]
     cmd: |
       /app/llama-server
       --host 0.0.0.0
-      --port 8001
-      -m /models/Qwen3-4B-Instruct-Q4_K_M.gguf
+      --port 8005
+      -m /models/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-UD-Q8_K_XL.gguf
       --ctx-size 32768
-      --temp 0.6
+      --temp 1.0
+      --top-p 0.95
+      --top-k 64
       -ngl 999
       --no-mmap
       -fa on
@@ -50,90 +56,6 @@ models:
       --cache-prompt
       --cache-reuse 256
       --threads 12
-    proxy: http://127.0.0.1:8001
+    proxy: http://127.0.0.1:8005
     ttl: 0
     group: task
-
-  # ── On-demand quality tier ───────────────────────────────────────────
-  # gpt-oss-120b: unsloth UD-Q8_K_XL quant, sharded across 2 GGUF files
-  # (00001-of-00002 + 00002-of-00002). llama-server follows the shard
-  # chain automatically when pointed at the first shard.
-  # kyuz0 recommends AMDVLK for prompt-heavy / long-context workloads;
-  # the bundled image only ships the RADV Vulkan ICD, so we run on RADV
-  # here and flag AMDVLK as an open question in docs/kyuz0-toolbox.md.
-  gpt-oss-120b:
-    aliases: [gpt-oss-120b, local-heavy]
-    cmd: |
-      /app/llama-server
-      --host 0.0.0.0
-      --port 8002
-      -m /models/gpt-oss-120b-UD-Q8_K_XL-00001-of-00002.gguf
-      --ctx-size 65536
-      --temp 0.8
-      --min-p 0.05
-      --chat-template-kwargs '{"reasoning_effort":"high"}'
-      -ngl 999
-      --no-mmap
-      -fa on
-      --batch-size 4096
-      --ubatch-size 512
-      --cache-type-k q8_0
-      --cache-type-v q8_0
-      --jinja
-      --direct-io
-      --cache-prompt
-      --cache-reuse 256
-      --threads 12
-    proxy: http://127.0.0.1:8002
-    ttl: 600
-    group: heavy
-
-  qwen3-30b:
-    aliases: [qwen3-30b-coder]
-    cmd: |
-      /app/llama-server
-      --host 0.0.0.0
-      --port 8003
-      -m /models/Qwen3-Coder-30B-Instruct-Q4_K_M.gguf
-      --ctx-size 65536
-      --temp 0.3
-      -ngl 999
-      --no-mmap
-      -fa on
-      --batch-size 4096
-      --ubatch-size 512
-      --cache-type-k q8_0
-      --cache-type-v q8_0
-      --jinja
-      --direct-io
-      --cache-prompt
-      --cache-reuse 256
-      --threads 12
-    proxy: http://127.0.0.1:8003
-    ttl: 600
-    group: heavy
-
-  # ── Embeddings ───────────────────────────────────────────────────────
-  qwen3-embedding:
-    aliases: [qwen3-embedding, local-embeddings]
-    cmd: |
-      /app/llama-server
-      --host 0.0.0.0
-      --port 8004
-      -m /models/Qwen3-Embedding-8B-Q8_0.gguf
-      --embedding
-      -ngl 999
-      --no-mmap
-      -fa on
-      --batch-size 4096
-      --ubatch-size 512
-      --cache-type-k q8_0
-      --cache-type-v q8_0
-      --jinja
-      --direct-io
-      --cache-prompt
-      --cache-reuse 256
-      --threads 12
-    proxy: http://127.0.0.1:8004
-    ttl: 0
-    group: embeddings
