@@ -1,7 +1,21 @@
-# paperclip — agent runtime for claude-code + pi-mono, driven through LiteLLM.
-# Image is our own derived build layering @mariozechner/pi on top of upstream
-# ghcr.io/paperclipai/paperclip:sha-b8725c5 (v2026.416.0). See docker/paperclip/
-# Dockerfile. Tag placeholder until the derived image is built and published.
+# paperclip — agent runtime for claude-code (+ pi-mono later), driven through
+# LiteLLM. UPSTREAM tag pin until the derived ghcr.io/sodimo/paperclip publish
+# path is unblocked (sodimo/dotfiles#12).
+#
+# Upstream's canonical quadlet (paperclipai/paperclip @ docker/quadlet/) wraps
+# the app + db in a podman Pod and lets the docker-entrypoint.sh shim run as
+# root + gosu-drop to node. That shape requires rootful podman; under rootless
+# podman 5.8.2 the gosu-drop fails with 'operation not permitted' even with
+# --userns=keep-id:uid=1000,gid=1000 (verified 2026-05-05). We deviate two
+# ways from the upstream quadlet:
+#   1. Network=sodimo.network instead of Pod — paperclip needs to reach
+#      litellm:4000 and other sidecars on the shared network.
+#   2. PodmanArgs=--entrypoint=/usr/local/bin/node + Exec=<image CMD args>
+#      bypasses docker-entrypoint.sh entirely and runs node directly as
+#      uid 1000. Documented as sodimo/dotfiles#16 option-1 (quadlet-level).
+#      Option-2 (image-level entrypoint swap in docker/paperclip/Dockerfile)
+#      is the long-term fix; ships when ghcr.io/sodimo/paperclip publish
+#      auth lands and we resume building the derived image.
 
 [Unit]
 Description=Paperclip agent runtime
@@ -10,19 +24,20 @@ Wants=sodimo-network.service paperclip-db.service litellm.service
 After=sodimo-network.service paperclip-db.service litellm.service
 
 [Container]
-Image=ghcr.io/sodimo/paperclip:v2026.416.0-pi0.x.y
+Image=ghcr.io/paperclipai/paperclip:sha-b8725c5
 ContainerName=paperclip
 Network=sodimo.network
-PublishPort=127.0.0.1:3100:3100
+# 2026-05-05: LAN-published 3111:3100 (no 127.0.0.1 bind) so office colleagues
+# without Tailscale can reach the demo. REVERT to 127.0.0.1:3100:3100 once
+# cloudflared + paperclip.sodimo.eu go live.
+PublishPort=3111:3100
 EnvironmentFile=%h/.config/sodimo/paperclip.env
 Volume=paperclip-data.volume:/paperclip:Z
-Volume=%h/.config/sodimo/paperclip/models.json:/paperclip/.pi/agent/models.json:ro,Z
-# Rootless podman (5.8.2) + the upstream paperclip entrypoint's `gosu node`
-# crash with `operation not permitted` because the in-container userns has
-# no CAP_SETUID over the host-UID range. Run Node directly as uid 1000 and
-# skip the docker-entrypoint.sh shim entirely. See sodimo/dotfiles#16.
+# pi-mono models.json bind disabled until derived image lands.
+# Volume=%h/.config/sodimo/paperclip/models.json:/paperclip/.pi/agent/models.json:ro,Z
 User=1000:1000
-Exec=node --import ./server/node_modules/tsx/dist/loader.mjs server/dist/index.js
+PodmanArgs=--entrypoint=/usr/local/bin/node
+Exec=--import ./server/node_modules/tsx/dist/loader.mjs server/dist/index.js
 
 [Service]
 Restart=on-failure
