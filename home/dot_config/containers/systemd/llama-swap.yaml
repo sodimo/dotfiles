@@ -7,12 +7,23 @@
 # interpolation map and resync procedure.
 #
 # Groups control concurrency + TTL:
-#   - task:       always-loaded (TTL=0), small, fast.
-#   - heavy:      on-demand, TTL=600s, exclusive swap (one-at-a-time).
-#   - embeddings: always-loaded, used by RAG if/when enabled.
+#   - task:   always-loaded (TTL=0), small, fast.
+#   - heavy:  on-demand, TTL=600s, exclusive swap (one-at-a-time).
 #
 # Model files live on the harness at %h/.local/share/llama-models/ and
 # are mounted read-only at /models inside the llama-swap container.
+#
+# Active model set as of 2026-05-05 (all on disk, rsync complete):
+#   task  : gemma-4-e2b               5.3 GB    (always-loaded)
+#   heavy : Qwen3.6-27b              35.3 GB    (vision; +0.93 GB mmproj-BF16)
+#   heavy : gemma-4-31b-it-spec*    35.0 GB    (dense; spec-decoded via E2B draft)
+#   heavy : gemma-4-26b-a4b-spec*   27.6 GB    (MoE; spec-decoded via E2B draft)
+# Older Qwen3-4B, gpt-oss-120b, Qwen3-Coder-30B, Qwen3-Embedding entries
+# were removed (no longer the chosen model set).
+#
+# Canonical naming rule: model keys (here) and litellm.yaml model_name +
+# openai/<name> proxy target must match byte-for-byte. Notably Qwen3.6-27b
+# preserves capital Q + dotted version; do not kebab-normalize.
 
 healthCheckTimeout: 120
 
@@ -23,20 +34,51 @@ groups:
   heavy:
     swap: true
     exclusive: true
-  embeddings:
-    swap: false
-    exclusive: false
 
 models:
-  # ── Always-loaded task tier ──────────────────────────────────────────
-  qwen3-4b:
-    aliases: [qwen3-4b, local-task]
+  # ── Gemma 3 E2B (Unsloth UD-Q8_K_XL, ~5 GB) ──────────────────────────
+  # Small Gemma 3 instruct quant, fully rsync'd 2026-05-05.
+  # ttl=0 + group=task so it stays warm for OpenWebUI.
+  gemma-4-e2b:
+    aliases: [gemma-4-e2b, local-gemma-small]
     cmd: |
       /app/llama-server
       --host 0.0.0.0
-      --port 8001
-      -m /models/Qwen3-4B-Instruct-Q4_K_M.gguf
+      --port 8005
+      -m /models/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-UD-Q8_K_XL.gguf
       --ctx-size 32768
+      --temp 1.0
+      --top-p 0.95
+      --top-k 64
+      -ngl 999
+      --no-mmap
+      -fa on
+      --batch-size 4096
+      --ubatch-size 512
+      --cache-type-k q8_0
+      --cache-type-v q8_0
+      --jinja
+      --direct-io
+      --cache-prompt
+      --cache-reuse 256
+      --threads 12
+    proxy: http://127.0.0.1:8005
+    ttl: 0
+    group: task
+  # ── Vision tier (Qwen3.6-27B with mmproj, on-demand) ────────────────
+  # Reference run script: ~/strix-ai-pi-qwen/run-server.sh on the same
+  # gfx1151 hardware family. Vulkan path; --no-direct-io mandated by
+  # ggml-org/llama.cpp issue #18741 for RADV+gfx1151. Port 8006 to avoid
+  # the existing `gemma-4-e2b` task-tier entry on 8005.
+  Qwen3.6-27b:
+    aliases: [Qwen3.6-27b, local-vision]
+    cmd: |
+      /app/llama-server
+      --host 0.0.0.0
+      --port 8006
+      -m /models/Qwen3.6-27B-GGUF/Qwen3.6-27B-UD-Q8_K_XL.gguf
+      --mmproj /models/Qwen3.6-27B-GGUF/mmproj-BF16.gguf
+      --ctx-size 131072
       --temp 0.6
       -ngl 999
       --no-mmap
@@ -46,94 +88,153 @@ models:
       --cache-type-k q8_0
       --cache-type-v q8_0
       --jinja
-      --direct-io
+      --no-direct-io
       --cache-prompt
       --cache-reuse 256
       --threads 12
-    proxy: http://127.0.0.1:8001
-    ttl: 0
-    group: task
-
-  # ── On-demand quality tier ───────────────────────────────────────────
-  # gpt-oss-120b: unsloth UD-Q8_K_XL quant, sharded across 2 GGUF files
-  # (00001-of-00002 + 00002-of-00002). llama-server follows the shard
-  # chain automatically when pointed at the first shard.
-  # kyuz0 recommends AMDVLK for prompt-heavy / long-context workloads;
-  # the bundled image only ships the RADV Vulkan ICD, so we run on RADV
-  # here and flag AMDVLK as an open question in docs/kyuz0-toolbox.md.
-  gpt-oss-120b:
-    aliases: [gpt-oss-120b, local-heavy]
-    cmd: |
-      /app/llama-server
-      --host 0.0.0.0
-      --port 8002
-      -m /models/gpt-oss-120b-UD-Q8_K_XL-00001-of-00002.gguf
-      --ctx-size 65536
-      --temp 0.8
-      --min-p 0.05
-      --chat-template-kwargs '{"reasoning_effort":"high"}'
-      -ngl 999
-      --no-mmap
-      -fa on
-      --batch-size 4096
-      --ubatch-size 512
-      --cache-type-k q8_0
-      --cache-type-v q8_0
-      --jinja
-      --direct-io
-      --cache-prompt
-      --cache-reuse 256
-      --threads 12
-    proxy: http://127.0.0.1:8002
+      --chat-template-kwargs '{"enable_thinking":true,"preserve_thinking":true}'
+      --reasoning-format deepseek
+    proxy: http://127.0.0.1:8006
     ttl: 600
     group: heavy
 
-  qwen3-30b:
-    aliases: [qwen3-30b-coder]
+  # ── Gemma 4 31B (dense) — speculative decoding via E2B draft ────────
+  # Per Zetaphor's Apr 12 2026 benchmark (~strix-ai-pi-qwen/NEW-gemma-additions.md):
+  # --draft-max 4 is the Strix Halo sweet spot (vs 8 on dGPUs); --parallel 1
+  # is mandatory; mmproj is incompatible with speculative decoding (text-only).
+  gemma-4-31b-it-spec:
+    aliases: [gemma-4-31b-it-spec, gemma-31b-thinking]
     cmd: |
       /app/llama-server
       --host 0.0.0.0
-      --port 8003
-      -m /models/Qwen3-Coder-30B-Instruct-Q4_K_M.gguf
+      --port 8007
+      -m /models/gemma-4-31B-it-GGUF/gemma-4-31B-it-UD-Q8_K_XL.gguf
+      -md /models/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-UD-Q8_K_XL.gguf
+      -ngld 999
+      --draft-max 4
+      --draft-min 1
+      --parallel 1
       --ctx-size 65536
-      --temp 0.3
-      -ngl 999
-      --no-mmap
       -fa on
-      --batch-size 4096
-      --ubatch-size 512
+      -ngl 999
+      --batch-size 512
+      --ubatch-size 256
+      --no-mmap
       --cache-type-k q8_0
       --cache-type-v q8_0
       --jinja
-      --direct-io
+      --no-direct-io
       --cache-prompt
       --cache-reuse 256
       --threads 12
-    proxy: http://127.0.0.1:8003
+      --temp 1.0
+      --top-p 0.95
+      --top-k 64
+      --repeat-penalty 1.0
+      --chat-template-kwargs '{"enable_thinking":true}'
+    proxy: http://127.0.0.1:8007
     ttl: 600
     group: heavy
 
-  # ── Embeddings ───────────────────────────────────────────────────────
-  qwen3-embedding:
-    aliases: [qwen3-embedding, local-embeddings]
+  gemma-4-31b-it-spec-nonthinking:
+    aliases: [gemma-4-31b-it-spec-nonthinking, gemma-31b-fast]
     cmd: |
       /app/llama-server
       --host 0.0.0.0
-      --port 8004
-      -m /models/Qwen3-Embedding-8B-Q8_0.gguf
-      --embedding
-      -ngl 999
-      --no-mmap
+      --port 8008
+      -m /models/gemma-4-31B-it-GGUF/gemma-4-31B-it-UD-Q8_K_XL.gguf
+      -md /models/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-UD-Q8_K_XL.gguf
+      -ngld 999
+      --draft-max 4
+      --draft-min 1
+      --parallel 1
+      --ctx-size 65536
       -fa on
-      --batch-size 4096
-      --ubatch-size 512
+      -ngl 999
+      --batch-size 512
+      --ubatch-size 256
+      --no-mmap
       --cache-type-k q8_0
       --cache-type-v q8_0
       --jinja
-      --direct-io
+      --no-direct-io
       --cache-prompt
       --cache-reuse 256
       --threads 12
-    proxy: http://127.0.0.1:8004
-    ttl: 0
-    group: embeddings
+      --temp 1.0
+      --top-p 0.95
+      --top-k 64
+      --repeat-penalty 1.0
+      --chat-template-kwargs '{"enable_thinking":false}'
+    proxy: http://127.0.0.1:8008
+    ttl: 600
+    group: heavy
+
+  # ── Gemma 4 26B-A4B (MoE) — speculative decoding via E2B draft ──────
+  gemma-4-26b-a4b-spec:
+    aliases: [gemma-4-26b-a4b-spec, gemma-26b-thinking]
+    cmd: |
+      /app/llama-server
+      --host 0.0.0.0
+      --port 8009
+      -m /models/gemma-4-26B-A4B-it-GGUF/gemma-4-26B-A4B-it-UD-Q8_K_XL.gguf
+      -md /models/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-UD-Q8_K_XL.gguf
+      -ngld 999
+      --draft-max 4
+      --draft-min 1
+      --parallel 1
+      --ctx-size 65536
+      -fa on
+      -ngl 999
+      --batch-size 512
+      --ubatch-size 256
+      --no-mmap
+      --cache-type-k q8_0
+      --cache-type-v q8_0
+      --jinja
+      --no-direct-io
+      --cache-prompt
+      --cache-reuse 256
+      --threads 12
+      --temp 1.0
+      --top-p 0.95
+      --top-k 64
+      --repeat-penalty 1.0
+      --chat-template-kwargs '{"enable_thinking":true}'
+    proxy: http://127.0.0.1:8009
+    ttl: 600
+    group: heavy
+
+  gemma-4-26b-a4b-spec-nonthinking:
+    aliases: [gemma-4-26b-a4b-spec-nonthinking, gemma-26b-fast]
+    cmd: |
+      /app/llama-server
+      --host 0.0.0.0
+      --port 8010
+      -m /models/gemma-4-26B-A4B-it-GGUF/gemma-4-26B-A4B-it-UD-Q8_K_XL.gguf
+      -md /models/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-UD-Q8_K_XL.gguf
+      -ngld 999
+      --draft-max 4
+      --draft-min 1
+      --parallel 1
+      --ctx-size 65536
+      -fa on
+      -ngl 999
+      --batch-size 512
+      --ubatch-size 256
+      --no-mmap
+      --cache-type-k q8_0
+      --cache-type-v q8_0
+      --jinja
+      --no-direct-io
+      --cache-prompt
+      --cache-reuse 256
+      --threads 12
+      --temp 1.0
+      --top-p 0.95
+      --top-k 64
+      --repeat-penalty 1.0
+      --chat-template-kwargs '{"enable_thinking":false}'
+    proxy: http://127.0.0.1:8010
+    ttl: 600
+    group: heavy
