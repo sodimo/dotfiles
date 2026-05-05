@@ -1,9 +1,1 @@
-# archive.sodimo.eu → Piler email archive
-archive.sodimo.eu {
-    reverse_proxy piler:80 {
-        header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-    }
-}
+# archive.sodimo.eu route removed pending mail-archive backend choice (see harness#42 retire postfix/dovecot/rspamd, future Mailpiler vs notmuch)
